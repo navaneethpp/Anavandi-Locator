@@ -1,4 +1,6 @@
 // splashScreen.dart
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:anavandi_locator/constants/images.dart';
 import 'package:anavandi_locator/constants/text.dart';
 import 'package:anavandi_locator/screen/home.dart';
@@ -27,10 +29,8 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  AppImages.splashScreenImage,
-                  width: 300.0,
-                ),
+                Image.asset(AppImages.splashScreenImage,
+                    width: AppImageWidth.splashScreenImageWidth),
                 const SizedBox(height: 20),
                 const Text(
                   'Prepare your trip with me...',
