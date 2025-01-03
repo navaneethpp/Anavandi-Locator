@@ -20,52 +20,56 @@ class _SplashScreenState extends State<SplashScreen> {
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => const Home()));
     });
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          // Main content centered
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(AppImages.splashScreenImage,
-                    width: AppImageWidth.splashScreenImageWidth),
-                const SizedBox(height: 20),
-                const Text(
-                  'Prepare your trip with me...',
-                  style: TextStyle(
-                    fontSize: 20,
+    return MaterialApp(
+      theme: ThemeData(
+          brightness: Brightness.light, scaffoldBackgroundColor: Colors.white),
+      home: Scaffold(
+        backgroundColor: Colors.blueGrey[300],
+        body: Stack(
+          children: [
+            // Main content centered
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(AppImages.splashScreenImage,
+                      width: AppImageWidth.splashScreenImageWidth),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Prepare your trip with me...',
+                    style: TextStyle(
+                      fontSize: 20,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40.0),
-                  child: LinearProgressIndicator(
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Colors.blue),
-                    backgroundColor: Colors.grey[300],
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                    child: LinearProgressIndicator(
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.blue),
+                      backgroundColor: Colors.grey[300],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Version text at the bottom
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(
-                  bottom: 16.0), // Adjust spacing as needed
-              child: Text(
-                AppInfo.version,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
+            // Version text at the bottom
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(
+                    bottom: 16.0), // Adjust spacing as needed
+                child: Text(
+                  AppInfo.version,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
