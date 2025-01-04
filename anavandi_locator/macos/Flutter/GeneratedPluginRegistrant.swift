@@ -5,8 +5,8 @@
 import FlutterMacOS
 import Foundation
 
-import package_info_plus
+import geolocator_apple
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
-  FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
+  GeolocatorPlugin.register(with: registry.registrar(forPlugin: "GeolocatorPlugin"))
 }

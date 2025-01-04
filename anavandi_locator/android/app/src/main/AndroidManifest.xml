@@ -24,6 +24,7 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <meta-data android:name="com.google.android.gms.location.DELAY_APPS_RESUME_FOR_GPS" android:value="false"/>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -42,4 +43,7 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>
