@@ -6,6 +6,7 @@ class RecentPage extends StatefulWidget {
   const RecentPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _RecentPageState createState() => _RecentPageState();
 }
 
@@ -94,8 +95,8 @@ class _RecentPageState extends State<RecentPage> {
                                 BorderRadius.circular(12), // Rounded corners
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black
-                                    .withOpacity(0.1), // Light shadow for depth
+                                color: Colors.black.withValues(
+                                    alpha: 0.3), // Light shadow for depth
                                 blurRadius: 5, // Blur radius of the shadow
                                 offset: const Offset(0, 2), // Shadow position
                               ),

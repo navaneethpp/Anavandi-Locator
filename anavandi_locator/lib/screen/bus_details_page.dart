@@ -1,9 +1,8 @@
 // BusDetailsPage.dart
 
+import 'package:anavandi_locator/widgets/map.dart';
+import 'package:anavandi_locator/widgets/textForBusDetails.dart';
 import 'package:flutter/material.dart';
-
-import 'map.dart';
-import 'textForBusDetails.dart';
 
 class BusDetailsPage extends StatelessWidget {
   final String registrationNumber;

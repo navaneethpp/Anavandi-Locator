@@ -1,7 +1,7 @@
 // bus_selection_menu.dart
 
+import 'package:anavandi_locator/screen/bus_details_page.dart';
 import 'package:flutter/material.dart';
-import 'BusDetailsPage.dart';
 
 class BusSelectionMenu extends StatefulWidget {
   const BusSelectionMenu({super.key});

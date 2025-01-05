@@ -6,6 +6,7 @@ class FavoritePage extends StatefulWidget {
   const FavoritePage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _FavoritePageState createState() => _FavoritePageState();
 }
 
@@ -63,7 +64,7 @@ class _FavoritePageState extends State<FavoritePage> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 5,
                               offset: const Offset(0, 2),
                             ),

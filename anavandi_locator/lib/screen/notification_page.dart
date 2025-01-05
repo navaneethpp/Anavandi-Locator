@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Notification Screen',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: NotificationPage(),
+      home: const NotificationPage(),
     );
   }
 }
@@ -24,6 +24,7 @@ class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _NotificationPageState createState() => _NotificationPageState();
 }
 
