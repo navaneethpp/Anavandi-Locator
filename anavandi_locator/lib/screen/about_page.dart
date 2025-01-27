@@ -67,11 +67,7 @@ class AboutPage extends StatelessWidget {
               alignment: Alignment
                   .bottomCenter, // Ensures the text is centered horizontally
               child: Text(
-<<<<<<< HEAD
-                'Version: 0.1.9 alpha', // Replace with your app's version number
-=======
                 'Version: 0.2.0 alpha', // Replace with your app's version number
->>>>>>> 2140e2e (Added the polyline for direction)
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
