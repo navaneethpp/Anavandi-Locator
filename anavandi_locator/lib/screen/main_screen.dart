@@ -43,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
           child: Stack(
             children: [
               Image.asset(
-                'assets/bg.png', // Replace with your image path
+                'assets/bg.png',
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,

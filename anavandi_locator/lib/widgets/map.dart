@@ -1,11 +1,14 @@
 // map.dart
 
+import 'package:anavandi_locator/api/open_route_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'constants.dart'; // Import the constants file
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class MapWidget extends StatefulWidget {
   const MapWidget({super.key});
@@ -21,12 +24,16 @@ class _MapWidgetState extends State<MapWidget> {
       const LatLng(10.767529113068605, 76.64929215373253);
   final LatLng _busEndLocation =
       const LatLng(10.765584666481779, 75.92557352614128);
+  List<LatLng> _routePoints = [];
   bool _loadingLocation = false;
+  final String _openRouteServiceApiKey =
+      openRouteSerivceAPI; // Replace with your API key
 
   @override
   void initState() {
     super.initState();
     _initializeUserLocation();
+    _fetchDirections();
   }
 
   Future<void> _initializeUserLocation() async {
@@ -105,6 +112,34 @@ class _MapWidgetState extends State<MapWidget> {
         false;
   }
 
+  Future<void> _fetchDirections() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'https://api.openrouteservice.org/v2/directions/driving-car?start=${_busCurrentLocation.longitude},${_busCurrentLocation.latitude}&end=${_busEndLocation.longitude},${_busEndLocation.latitude}'),
+        headers: {'Authorization': _openRouteServiceApiKey},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> coordinates =
+            data['features'][0]['geometry']['coordinates'];
+
+        setState(() {
+          _routePoints = coordinates
+              .map((coord) => LatLng(coord[1], coord[0])) // Convert to LatLng
+              .toList();
+        });
+      } else {
+        throw Exception('Failed to fetch directions: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching directions: ${e.toString()}')),
+      );
+    }
+  }
+
   void _recenterMap(LatLng targetLocation) {
     _mapController.move(targetLocation, 14);
   }
@@ -122,6 +157,15 @@ class _MapWidgetState extends State<MapWidget> {
             ),
             children: [
               openStreetMapTileLayer,
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: _routePoints,
+                    strokeWidth: 4.0,
+                    color: Colors.blue,
+                  ),
+                ],
+              ),
               MarkerLayer(
                 markers: [
                   // User location (only if available)
