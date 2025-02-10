@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "819865969343",
+    "project_id": "anavandi-companion",
+    "storage_bucket": "anavandi-companion.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:819865969343:android:1b48ac84813f560ad4dc0a",
+        "android_client_info": {
+          "package_name": "com.example.anavandi_companion"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVdbaCqbpywxynZ4ci-dC0-tsQAlkqpjs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

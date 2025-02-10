@@ -1,0 +1,5 @@
+* Connecting Firebase with the application
+* Passing the user destination into the maps widget.
+* live updation of bus location.
+* drawing the polyline based on the bus passing locations
+* The last searched locations are remains
