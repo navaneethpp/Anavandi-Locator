@@ -186,7 +186,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
     try {
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        desiredAccuracy: LocationAccuracy.best, // Highest accuracy
+        forceAndroidLocationManager: true, // Use native location manager
+        timeLimit: const Duration(milliseconds: 500), // Reduce update delay
+      );
 
       double currentLatRad = _degreesToRadians(position.latitude);
       double currentLonRad = _degreesToRadians(position.longitude);
@@ -196,7 +199,8 @@ class _MyHomePageState extends State<MyHomePage> {
       double distance = Geolocator.distanceBetween(
           previousLatRad, previousLonRad, currentLatRad, currentLonRad);
 
-      const double minimumDistanceChange = 10;
+      const double minimumDistanceChange =
+          0.5; // Reduced for high frequency updates
 
       if (distance > minimumDistanceChange || !locationInitialized) {
         setState(() {
@@ -209,12 +213,9 @@ class _MyHomePageState extends State<MyHomePage> {
         previousLatitude = position.latitude;
         previousLongitude = position.longitude;
         locationInitialized = true;
-      } else {
-        _showSnackBar("No significant location change");
       }
     } catch (e) {
       _showSnackBar("Error getting current location: $e");
-      print("Error getting current location: $e");
     }
   }
 

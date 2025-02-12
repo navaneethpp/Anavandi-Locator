@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:anavandi_locator/api/open_route_service.dart';
+import 'package:anavandi_locator/widgets/constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -27,16 +30,83 @@ class _MapWidgetState extends State<MapWidget> {
   LatLng? _busCurrentLocation;
   bool _loadingLocation = false;
   List<LatLng> _polylinePoints = [];
+  bool? _isTravellingInBus; // Added state variable
+  Timer? _locationFetchTimer; // Timer for periodic location fetching
 
   @override
   void initState() {
     super.initState();
-    _initializeUserLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showTravelStatusDialog(
+          context); // Show dialog on app start after frame is built
+    });
     _listenToBusLocation();
     _fetchRoute();
   }
 
+  @override
+  void dispose() {
+    _locationFetchTimer?.cancel(); // Cancel timer if active
+    super.dispose();
+  }
+
+  void _startLocationFetching() {
+    if (_locationFetchTimer == null || !_locationFetchTimer!.isActive) {
+      _locationFetchTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+        if (_isTravellingInBus == false) {
+          _initializeUserLocation();
+        } else {
+          _locationFetchTimer
+              ?.cancel(); // Stop timer if user selects "Yes" later
+        }
+      });
+    }
+  }
+
+  void _stopLocationFetching() {
+    _locationFetchTimer?.cancel();
+  }
+
+  Future<void> _showTravelStatusDialog(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap a button
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Travelling in Bus?'),
+          content: const Text('Are you still travelling in the bus?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('No'),
+              onPressed: () {
+                setState(() {
+                  _isTravellingInBus = false;
+                });
+                _initializeUserLocation(); // Fetch location immediately on 'No'
+                _startLocationFetching(); // Start periodic fetching
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Yes'),
+              onPressed: () {
+                setState(() {
+                  _isTravellingInBus = true;
+                });
+                _stopLocationFetching(); // Stop periodic fetching if it was started before
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _initializeUserLocation() async {
+    if (_isTravellingInBus == true) {
+      return; // Do not fetch location if user is in bus and answered "Yes"
+    }
     setState(() {
       _loadingLocation = true;
     });
@@ -70,10 +140,10 @@ class _MapWidgetState extends State<MapWidget> {
         _userLocation = currentLocation;
       });
 
-      _mapController.move(currentLocation, 14);
+      _mapController.move(currentLocation, zoomValue);
       print("User Location: $_userLocation");
     } catch (e) {
-      _mapController.move(LatLng(10.767529, 76.649292), 14);
+      _mapController.move(LatLng(10.767529, 76.649292), zoomValue);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
@@ -100,6 +170,10 @@ class _MapWidgetState extends State<MapWidget> {
             setState(() {
               _busCurrentLocation =
                   LatLng(coordinates.latitude, coordinates.longitude);
+              if (_busCurrentLocation != null) {
+                // Center map on bus location update
+                _mapController.move(_busCurrentLocation!, zoomValue);
+              }
             });
           } else {
             print(
@@ -134,7 +208,7 @@ class _MapWidgetState extends State<MapWidget> {
 
   Future<void> _fetchRoute() async {
     const String apiKey =
-        '5b3ce3597851110001cf6248319bc5a4a4aa436f943c6ca358396e98';
+        openRouteSerivceAPI; // API key for oper route services
     const String apiUrl =
         'https://api.openrouteservice.org/v2/directions/driving-car';
     const LatLng startPoint = LatLng(10.765701711281343, 75.92560325817277);
@@ -170,6 +244,21 @@ class _MapWidgetState extends State<MapWidget> {
           _buildMap(),
           if (_loadingLocation)
             const Center(child: CircularProgressIndicator()),
+
+          // Below section is to display the water mark above the map.
+          const Align(
+            alignment: Alignment.bottomLeft,
+            child: Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Text(
+                '© OpenStreetMap Contributors',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Color.fromARGB(255, 0, 0, 0),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -196,22 +285,28 @@ class _MapWidgetState extends State<MapWidget> {
                 _centerMapOnBusLocation();
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.person_pin),
-              title: const Text('Center User Location'),
-              onTap: () {
-                Navigator.pop(context);
-                _centerMapOnUserLocation();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text('Re-fetch User Location'),
-              onTap: () {
-                Navigator.pop(context);
-                _initializeUserLocation();
-              },
-            ),
+            if (_isTravellingInBus == false ||
+                _isTravellingInBus ==
+                    null) // Conditionally display Center User Location
+              ListTile(
+                leading: const Icon(Icons.person_pin),
+                title: const Text('Center User Location'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _centerMapOnUserLocation();
+                },
+              ),
+            if (_isTravellingInBus == false ||
+                _isTravellingInBus ==
+                    null) // Conditionally display Re-fetch User Location
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('Re-fetch User Location'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _initializeUserLocation();
+                },
+              ),
           ],
         );
       },
@@ -220,7 +315,7 @@ class _MapWidgetState extends State<MapWidget> {
 
   void _centerMapOnUserLocation() {
     if (_userLocation != null) {
-      _mapController.move(_userLocation!, 14);
+      _mapController.move(_userLocation!, zoomValue);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User location is not available.')),
@@ -230,7 +325,7 @@ class _MapWidgetState extends State<MapWidget> {
 
   void _centerMapOnBusLocation() {
     if (_busCurrentLocation != null) {
-      _mapController.move(_busCurrentLocation!, 14);
+      _mapController.move(_busCurrentLocation!, zoomValue);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bus location is not available.')),
@@ -247,7 +342,7 @@ class _MapWidgetState extends State<MapWidget> {
           mapController: _mapController,
           options: MapOptions(
             initialCenter: initialCenter,
-            initialZoom: 14,
+            initialZoom: zoomValue,
           ),
           children: [
             TileLayer(
@@ -279,7 +374,9 @@ class _MapWidgetState extends State<MapWidget> {
     if (_busCurrentLocation != null) {
       markers.add(_createBusMarker());
     }
-    if (_userLocation != null) {
+    if (_userLocation != null &&
+        (_isTravellingInBus == false || _isTravellingInBus == null)) {
+      // Conditionally display user marker
       markers.add(_createUserMarker());
     }
     markers.add(_busEndMark());
@@ -291,9 +388,10 @@ class _MapWidgetState extends State<MapWidget> {
       point: _busCurrentLocation!,
       width: 40,
       height: 40,
-      child: Icon(
+      child: const Icon(
         Icons.directions_bus,
         color: Colors.redAccent,
+        size: iconSize,
       ),
     );
   }
@@ -306,27 +404,30 @@ class _MapWidgetState extends State<MapWidget> {
       child: const Icon(
         Icons.person_pin_circle,
         color: Colors.blue,
+        size: iconSize,
       ),
     );
   }
 
   Marker _busEndMark() {
     return const Marker(
-      point: LatLng(10.765701711281343, 76.647621),
+      point: LatLng(10.767571520930707, 76.64942283322327),
       width: 40,
       height: 40,
       child: (Icon(
         Icons.flag,
         color: Colors.green,
+        size: iconSize,
       )),
     );
   }
 
   Future<LatLng?> _getUserOrBusLocation() async {
-    if (_userLocation != null) {
-      return _userLocation;
-    } else if (_busCurrentLocation != null) {
+    if (_busCurrentLocation != null) {
       return _busCurrentLocation;
+    } else if (_userLocation != null &&
+        (_isTravellingInBus == false || _isTravellingInBus == null)) {
+      return _userLocation;
     }
     return null;
   }
