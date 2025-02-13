@@ -1,4 +1,5 @@
 // main_screen.dart
+// This page is the entry page of the app
 
 import 'package:anavandi_locator/widgets/bus_selection_menu.dart';
 import 'package:flutter/material.dart';

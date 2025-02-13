@@ -1,7 +1,10 @@
 // bus_selection_menu.dart
+// This page include the entrance text field
 
 import 'package:anavandi_locator/screen/bus_details_page.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:string_extensions/string_extensions.dart'; // Import string_extensions
 
 class BusSelectionMenu extends StatefulWidget {
   const BusSelectionMenu({super.key});
@@ -13,8 +16,72 @@ class BusSelectionMenu extends StatefulWidget {
 class _BusSelectionMenuState extends State<BusSelectionMenu> {
   List<Map<String, String>> availableBuses = [];
   List<Map<String, String>> favoriteBuses = [];
-  final TextEditingController startingPointController = TextEditingController();
-  final TextEditingController destinationController = TextEditingController();
+  TextEditingController startingPointController = TextEditingController();
+  TextEditingController destinationController = TextEditingController();
+
+  List<String> allDepotNames = [];
+  List<String> startingSuggestionList = [];
+  List<String> destinationSuggestionList = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDepotNames();
+  }
+
+  Future<void> _fetchDepotNames() async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      QuerySnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance.collection('Depot').get();
+
+      allDepotNames = snapshot.docs
+          .map((doc) {
+            return doc.data()['name'] as String? ?? '';
+          })
+          .where((name) => name.isNotEmpty)
+          .toList();
+      allDepotNames.sort();
+    } catch (e) {
+      print('Error fetching depot names: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load depot names.')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _updateStartingSuggestionList(String input) {
+    setState(() {
+      if (input.isEmpty) {
+        startingSuggestionList = [];
+      } else {
+        startingSuggestionList = allDepotNames
+            .where((depotName) =>
+                depotName.toLowerCase().contains(input.toLowerCase()))
+            .toList();
+      }
+    });
+  }
+
+  void _updateDestinationSuggestionList(String input) {
+    setState(() {
+      if (input.isEmpty) {
+        destinationSuggestionList = [];
+      } else {
+        destinationSuggestionList = allDepotNames
+            .where((depotName) =>
+                depotName.toLowerCase().contains(input.toLowerCase()))
+            .toList();
+      }
+    });
+  }
 
   void findBuses() {
     if (startingPointController.text.isEmpty ||
@@ -37,23 +104,48 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
       return;
     }
 
+    //  validation check for if user enter starting point and destination same:
+    if (startingPointController.text.toLowerCase() ==
+        destinationController.text.toLowerCase()) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: const Text(
+            'Starting point and Destination can\'t be the same.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return; // Exit the function if validation fails
+    }
+
     setState(() {
       availableBuses = [
         {
           'registrationNumber': 'AB1234',
           'uniqueNumber': '001',
-          'startingStation': 'Station A',
-          'endingStation': 'Station B',
-          'currentLocation': 'Near Station A',
+          'startingStation':
+              startingPointController.text, // Use input from text fields
+          'endingStation':
+              destinationController.text, // Use input from text fields
+          'currentLocation': 'Near ${startingPointController.text}',
           'arrivingTime': '7:30 AM',
           'busType': 'Express',
         },
         {
           'registrationNumber': 'CD5678',
           'uniqueNumber': '002',
-          'startingStation': 'Station C',
-          'endingStation': 'Station D',
-          'currentLocation': 'Near Station C',
+          'startingStation':
+              startingPointController.text, // Use input from text fields
+          'endingStation':
+              destinationController.text, // Use input from text fields
+          'currentLocation': 'Near ${startingPointController.text}',
           'arrivingTime': '8:00 AM',
           'busType': 'Local',
         },
@@ -64,9 +156,9 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
   void _toggleFavorite(Map<String, String> bus) {
     setState(() {
       if (favoriteBuses.contains(bus)) {
-        favoriteBuses.remove(bus); // Remove from favorites
+        favoriteBuses.remove(bus);
       } else {
-        favoriteBuses.add(bus); // Add to favorites
+        favoriteBuses.add(bus);
       }
     });
   }
@@ -86,8 +178,7 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
             ),
             GestureDetector(
               onTap: () {
-                Navigator.pushNamed(context,
-                    '/home'); // Replace '/home' with your desired route
+                Navigator.pushNamed(context, '/home');
               },
               child: Image.asset(
                 'assets/logo_white.png',
@@ -107,15 +198,42 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 0),
-                TextField(
-                  controller: startingPointController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    hintText: 'Starting Point',
+                if (isLoading)
+                  const LinearProgressIndicator(
+                      color: Colors.cyanAccent) // Loading indicator
+                else
+                  Column(
+                    // Wrap TextField and suggestions in a Column
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        textCapitalization: TextCapitalization.characters,
+                        controller: startingPointController,
+                        style: const TextStyle(
+                            color: Colors.black), // Adjusted text color
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: 'Starting Point',
+                          hintStyle: TextStyle(
+                              color: Colors.grey), // Adjusted hint text color
+                        ),
+                        onChanged: (value) {
+                          _updateStartingSuggestionList(value);
+                        },
+                      ),
+                      if (startingSuggestionList.isNotEmpty)
+                        _buildSuggestionList(
+                            startingSuggestionList, startingPointController,
+                            () {
+                          setState(() {
+                            startingSuggestionList =
+                                []; // Clear suggestions on selection
+                          });
+                        }),
+                    ],
                   ),
-                ),
                 const SizedBox(height: 8),
                 Center(
                   child: IconButton(
@@ -132,15 +250,41 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextField(
-                  controller: destinationController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    hintText: 'Destination',
+                if (isLoading)
+                  const SizedBox
+                      .shrink() // No TextField for Destination while loading
+                else
+                  Column(
+                    // Wrap TextField and suggestions in a Column
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: destinationController,
+                        style: const TextStyle(
+                            color: Colors.black), // Adjusted text color
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: 'Destination',
+                          hintStyle: TextStyle(
+                              color: Colors.grey), // Adjusted hint text color
+                        ),
+                        onChanged: (value) {
+                          _updateDestinationSuggestionList(value);
+                        },
+                      ),
+                      if (destinationSuggestionList.isNotEmpty)
+                        _buildSuggestionList(
+                            destinationSuggestionList, destinationController,
+                            () {
+                          setState(() {
+                            destinationSuggestionList =
+                                []; // Clear suggestions on selection
+                          });
+                        }),
+                    ],
                   ),
-                ),
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.center,
@@ -218,6 +362,33 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper function to build suggestion list
+  Widget _buildSuggestionList(List<String> suggestionList,
+      TextEditingController controller, VoidCallback onSuggestionSelected) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black87.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(5.0),
+      ),
+      margin: const EdgeInsets.only(top: 2.0),
+      height: 150.0, // Fixed height for suggestion list
+      child: ListView.builder(
+        itemCount: suggestionList.length,
+        itemBuilder: (context, index) {
+          final depotName = suggestionList[index];
+          return ListTile(
+            title: Text(depotName.toTitleCase, // Convert to title case here
+                style: const TextStyle(color: Colors.white)),
+            onTap: () {
+              controller.text = depotName;
+              onSuggestionSelected(); // Callback to clear suggestion list in parent widget
+            },
+          );
+        },
       ),
     );
   }
