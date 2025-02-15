@@ -104,7 +104,7 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
       return;
     }
 
-    //  validation check for if user enter starting point and destination same:
+    // Validation check for if user enters starting point and destination same:
     if (startingPointController.text.toLowerCase() ==
         destinationController.text.toLowerCase()) {
       showDialog(
@@ -124,6 +124,50 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
       );
       return; // Exit the function if validation fails
     }
+
+    // --- Location Database Validation ---
+    String startingPoint = startingPointController.text.trim().toLowerCase();
+    String destinationPoint = destinationController.text.trim().toLowerCase();
+
+    bool isStartingPointValid = false;
+    bool isDestinationValid = false;
+
+    for (String depotName in allDepotNames) {
+      if (depotName.toLowerCase() == startingPoint) {
+        isStartingPointValid = true;
+      }
+      if (depotName.toLowerCase() == destinationPoint) {
+        isDestinationValid = true;
+      }
+    }
+
+    if (!isStartingPointValid || !isDestinationValid) {
+      String errorMessage = '';
+      if (!isStartingPointValid && !isDestinationValid) {
+        errorMessage =
+            'Starting point and Destination locations are not found in our database.';
+      } else if (!isStartingPointValid) {
+        errorMessage = 'Starting point location is not found in our database.';
+      } else {
+        errorMessage = 'Destination location is not found in our database.';
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Location Not Found'),
+          content: Text(errorMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return; // Exit if location is not valid
+    }
+    // --- End Location Database Validation ---
 
     setState(() {
       availableBuses = [

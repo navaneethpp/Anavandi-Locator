@@ -14,3 +14,4 @@
 13 Added a feature for centering the bus on every movement. 
 14 Added the suggestion box in textField()
 15 Screen rotation is permanently disabled in the app
+16 Added an alert box to indicate that if the user accidentally searched for a location that is not in the database, such a location is in the database.
