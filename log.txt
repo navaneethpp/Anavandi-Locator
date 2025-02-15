@@ -12,3 +12,5 @@
 11 If the user answer is "No" then the starts fetching the user location and updates every 1 minute.
 12 Added a smooth map traveling
 13 Added a feature for centering the bus on every movement. 
+14 Added the suggestion box in textField()
+15 Screen rotation is permanently disabled in the app
