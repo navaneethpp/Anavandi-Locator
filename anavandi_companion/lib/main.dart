@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_android/geolocator_android.dart'; // Import for AndroidSettings
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math' as math;
+// import 'dart:math' as math;
 import 'dart:async';
 
 void main() async {
@@ -39,11 +41,12 @@ class _MyHomePageState extends State<MyHomePage> {
   String bdata = "START";
   double latitude = 0.0;
   double longitude = 0.0;
-  double previousLatitude = 0.0;
-  double previousLongitude = 0.0;
+  double _previousLatitude = 0.0;
+  double _previousLongitude = 0.0;
   bool locationInitialized = false;
   Timer? _locationUpdateTimer;
   bool _isUpdatingLocation = false;
+  double _lastUpdateTime = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -144,11 +147,11 @@ class _MyHomePageState extends State<MyHomePage> {
     _getCurrentLocation(); // Get initial location immediately
 
     _locationUpdateTimer =
-        Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+        Timer.periodic(const Duration(seconds: 2), (Timer timer) {
       if (_isUpdatingLocation) {
         _getCurrentLocation();
       } else {
-        timer.cancel(); // Stop the timer if the flag is false
+        timer.cancel();
       }
     });
   }
@@ -159,14 +162,14 @@ class _MyHomePageState extends State<MyHomePage> {
     _locationUpdateTimer = null;
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<Position?> _getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       _showErrorDialog('Location services are disabled.');
-      return;
+      return null;
     }
 
     permission = await Geolocator.checkPermission();
@@ -174,35 +177,45 @@ class _MyHomePageState extends State<MyHomePage> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         _showErrorDialog('Location permission denied.');
-        return;
+        return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
       _showErrorDialog(
           'Location permissions are permanently denied, please enable them in settings.');
-      return;
+      return null;
     }
 
     try {
+      LocationSettings locationSettings;
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        locationSettings = AndroidSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+          forceLocationManager: true,
+        );
+      } else {
+        locationSettings = LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+        );
+      }
+
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best, // Highest accuracy
-        forceAndroidLocationManager: true, // Use native location manager
-        timeLimit: const Duration(milliseconds: 500), // Reduce update delay
+        locationSettings: locationSettings,
       );
 
-      double currentLatRad = _degreesToRadians(position.latitude);
-      double currentLonRad = _degreesToRadians(position.longitude);
-      double previousLatRad = _degreesToRadians(previousLatitude);
-      double previousLonRad = _degreesToRadians(previousLongitude);
+      double currentTime = DateTime.now().millisecondsSinceEpoch / 1000;
+      double timeDifference = currentTime - _lastUpdateTime;
 
-      double distance = Geolocator.distanceBetween(
-          previousLatRad, previousLonRad, currentLatRad, currentLonRad);
+      double distanceThreshold = 0.1;
 
-      const double minimumDistanceChange =
-          0.5; // Reduced for high frequency updates
-
-      if (distance > minimumDistanceChange || !locationInitialized) {
+      if (Geolocator.distanceBetween(_previousLatitude, _previousLongitude,
+                  position.latitude, position.longitude) >
+              distanceThreshold ||
+          !locationInitialized) {
         setState(() {
           latitude = position.latitude;
           longitude = position.longitude;
@@ -210,12 +223,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
         _updateLocationInFirestore(latitude, longitude);
 
-        previousLatitude = position.latitude;
-        previousLongitude = position.longitude;
+        _previousLatitude = position.latitude;
+        _previousLongitude = position.longitude;
         locationInitialized = true;
+        _lastUpdateTime = currentTime;
       }
+
+      return position;
     } catch (e) {
       _showSnackBar("Error getting current location: $e");
+      return null;
     }
   }
 
@@ -230,10 +247,6 @@ class _MyHomePageState extends State<MyHomePage> {
       _showSnackBar("Error updating Firestore data: $e");
       print("Error updating Firestore data: $e");
     }
-  }
-
-  double _degreesToRadians(double degrees) {
-    return degrees * math.pi / 180;
   }
 
   void _showErrorDialog(String message) {
