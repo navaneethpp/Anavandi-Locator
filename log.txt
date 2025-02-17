@@ -2,7 +2,7 @@
 1 Connected the Anavandi Locator with FireBase.
 2 Added Real Time Location in app.
 3 Tested and corrected maximum errors in Map section
-4 Resetted initial zoom of map to 18
+4 Rested initial zoom of map to 18
 5 Redesigned the floating action button in the map section
 6 Added location identification marks
 7 Updated the markers in the app
@@ -15,3 +15,4 @@
 14 Added the suggestion box in textField()
 15 Screen rotation is permanently disabled in the app
 16 Added an alert box to indicate that if the user accidentally searched for a location that is not in the database, such a location is in the database.
+17 Add compass in map widget

@@ -21,6 +21,7 @@ dependencies:
   firebase_core: ^3.11.0   # For firestore
   cloud_firestore: ^5.6.3 # For firestore
   string_extensions: ^0.7.3
+  sensors_plus: ^6.1.1
 
 dev_dependencies:
   flutter_test:

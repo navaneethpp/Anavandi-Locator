@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'compass_widget.dart'; // Import the CompassWidget
 
 class Coordinates {
   final double latitude;
@@ -244,6 +245,13 @@ class _MapWidgetState extends State<MapWidget> {
           _buildMap(),
           if (_loadingLocation)
             const Center(child: CircularProgressIndicator()),
+
+          // Compass Widget added here, in top-right corner
+          const Positioned(
+            bottom: 16.0,
+            left: 16.0,
+            child: CompassWidget(),
+          ),
 
           // Below section is to display the water mark above the map.
           const Align(
