@@ -130,6 +130,8 @@ class BusDetailsPage extends StatelessWidget {
                       busType: busType,
                       userStartingStation: userStartingStation,
                       userEndingStation: userEndingStation,
+                      endLatitude: 0,
+                      endLongitude: 0,
                     ),
                   ),
                 );

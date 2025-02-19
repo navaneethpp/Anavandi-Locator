@@ -17,3 +17,4 @@
 16 Added an alert box to indicate that if the user accidentally searched for a location that is not in the database, such a location is in the database.
 17 Add compass in map widget
 18 Add the feature to update the current location of the bus dynamically
+19 Added the feature to predict the arriving time.
