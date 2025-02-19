@@ -2,11 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geolocator_android/geolocator_android.dart'; // Import for AndroidSettings
+import 'package:geolocator_android/geolocator_android.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'dart:math' as math;
 import 'dart:async';
-import 'package:intl/intl.dart'; // Import for formatting speed
+import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,7 +47,38 @@ class _MyHomePageState extends State<MyHomePage> {
   Timer? _locationUpdateTimer;
   bool _isUpdatingLocation = false;
   double _lastUpdateTime = 0;
-  double _speed = 0.0; // Add speed variable
+  double _speed = 0.0;
+  List<String> _documentList =
+      []; // List to hold document IDs in 'location' collection
+  String? _selectedDocument; // Currently selected document ID
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDocumentList(); // Fetch document IDs from 'location' collection
+  }
+
+  Future<void> _fetchDocumentList() async {
+    try {
+      QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
+          .instance
+          .collection('location')
+          .get(); // Fetch from 'location' collection
+      List<String> documentIds = snapshot.docs
+          .map((doc) => doc.id)
+          .toList(); // Document IDs are the names
+      setState(() {
+        _documentList = documentIds;
+        if (_documentList.isNotEmpty) {
+          _selectedDocument =
+              _documentList[0]; // Select the first document by default
+        }
+      });
+    } catch (e) {
+      _showSnackBar("Error fetching document list: $e");
+      print("Error fetching document list: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +102,49 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              if (_documentList
+                  .isNotEmpty) // Show dropdown only if document list is loaded
+                DropdownButtonFormField<String>(
+                  value: _selectedDocument,
+                  decoration: InputDecoration(
+                    labelText: 'Select Document', // Updated label
+                    labelStyle: const TextStyle(color: Colors.white),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.white),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.black),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  dropdownColor: Colors.deepPurpleAccent,
+                  style: const TextStyle(color: Colors.white, fontSize: 18),
+                  items: _documentList.map((String documentId) {
+                    // Use document IDs in dropdown
+                    return DropdownMenuItem<String>(
+                      value: documentId,
+                      child: Text(documentId),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedDocument = newValue;
+                    });
+                  },
+                ),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   setState(() {
                     if (bdata == "START") {
                       bdata = "STOP";
-                      _startLocationUpdates();
+                      if (_selectedDocument != null) {
+                        _startLocationUpdates();
+                      } else {
+                        _showSnackBar(
+                            "Please select a document from the dropdown."); // Updated message
+                      }
                     } else {
                       bdata = "START";
                       _stopLocationUpdates();
@@ -104,48 +171,73 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               const SizedBox(height: 40),
-              StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('location')
-                    .doc('location')
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  // ... (error and waiting state handling) ...
+              if (_selectedDocument !=
+                  null) // Show location data only when a document is selected
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('location')
+                      .doc(_selectedDocument!) // Use selected document ID
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.white));
+                    }
 
-                  if (!snapshot.hasData || !snapshot.data!.exists) {
-                    return const Text("No location data found.",
-                        style: TextStyle(color: Colors.white));
-                  }
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    }
 
-                  final data = snapshot.data!.data() as Map<String, dynamic>;
-                  final firestoreLocation =
-                      data['Location'] as String ?? 'No Location';
-                  final firestoreSpeed =
-                      data['Speed'] as double? ?? 0.0; // Fetch speed
+                    if (!snapshot.hasData || !snapshot.data!.exists) {
+                      return Text(
+                          "No location data found for $_selectedDocument.", // Updated message
+                          style: TextStyle(color: Colors.white));
+                    }
 
-                  return Column(
-                    children: [
-                      Text(
-                        'Firestore Location: $firestoreLocation',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          color: Colors.white,
+                    final data = snapshot.data!.data() as Map<String, dynamic>;
+                    String firestoreLocationString = 'No Location Data';
+                    if (data.containsKey('Location') &&
+                        data['Location'] is List) {
+                      List<dynamic> locationArray =
+                          data['Location'] as List<dynamic>;
+                      if (locationArray.length == 2) {
+                        double lat = locationArray[0] as double? ?? 0.0;
+                        double lon = locationArray[1] as double? ?? 0.0;
+                        firestoreLocationString =
+                            '${lat.toStringAsFixed(6)}° N, ${lon.toStringAsFixed(6)}° E';
+                      }
+                    }
+
+                    final firestoreSpeed = data['Speed'] as double? ?? 0.0;
+
+                    return Column(
+                      children: [
+                        Text(
+                          'Selected Document: $_selectedDocument', // Updated text
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 16),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Speed: ${_formatSpeedToKMPH(firestoreSpeed)}', // Display speed
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          color: Colors.white,
+                        Text(
+                          'Firestore Location: $firestoreLocationString',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Speed: ${_formatSpeedToKMPH(firestoreSpeed)}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -160,7 +252,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _startLocationUpdates() {
     _isUpdatingLocation = true;
-    _getCurrentLocation(); // Get initial location immediately
+    _getCurrentLocation();
 
     _locationUpdateTimer =
         Timer.periodic(const Duration(seconds: 2), (Timer timer) {
@@ -235,11 +327,10 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {
           latitude = position.latitude;
           longitude = position.longitude;
-          _speed = position.speed; // Get speed from Position object
+          _speed = position.speed;
         });
 
-        _updateLocationInFirestore(
-            latitude, longitude, _speed); // Update Firestore with speed
+        _updateLocationInFirestore(latitude, longitude, _speed);
 
         _previousLatitude = position.latitude;
         _previousLongitude = position.longitude;
@@ -256,18 +347,24 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _updateLocationInFirestore(
       double lat, double lon, double speed) async {
+    if (_selectedDocument == null) {
+      _showSnackBar("No document selected!");
+      return;
+    }
     try {
       await FirebaseFirestore.instance
           .collection('location')
-          .doc('location')
-          .set({
-        'Location': '$lat° N, $lon° E',
-        'Speed': speed, // Save speed to Firestore
+          .doc(_selectedDocument!)
+          .update({
+        // Use .update() to update existing document
+        'Location': [lat, lon],
+        'Speed': speed,
       });
-      _showSnackBar("Location and Speed updated in Firestore!");
+      _showSnackBar(
+          "Location and Speed updated for $_selectedDocument in Firestore!");
     } catch (e) {
-      _showSnackBar("Error updating Firestore data: $e");
-      print("Error updating Firestore data: $e");
+      _showSnackBar("Error updating Firestore data for $_selectedDocument: $e");
+      print("Error updating Firestore data for $_selectedDocument: $e");
     }
   }
 
