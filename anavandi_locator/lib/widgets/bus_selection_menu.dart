@@ -380,22 +380,70 @@ class _BusSelectionMenuState extends State<BusSelectionMenu> {
                                 _toggleFavorite(bus);
                               },
                             ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => BusDetailsPage(
-                                    registrationNumber:
-                                        bus['registrationNumber']!,
-                                    uniqueNumber: bus['uniqueNumber']!,
-                                    startingStation: bus['startingStation']!,
-                                    endingStation: bus['endingStation']!,
-                                    currentLocation: bus['currentLocation']!,
-                                    arrivingTime: bus['arrivingTime']!,
-                                    busType: bus['busType']!,
+                            onTap: () async {
+                              String destinationName = bus['endingStation']!;
+                              double? endLatitude;
+                              double? endLongitude;
+
+                              try {
+                                QuerySnapshot<Map<String, dynamic>>
+                                    depotSnapshot = await FirebaseFirestore
+                                        .instance
+                                        .collection('Depot')
+                                        .where('name',
+                                            isEqualTo: destinationName)
+                                        .get();
+
+                                if (depotSnapshot.docs.isNotEmpty) {
+                                  var depotData =
+                                      depotSnapshot.docs.first.data();
+                                  List<dynamic> locationArray =
+                                      depotData['location'];
+                                  if (locationArray.length == 2) {
+                                    endLatitude = locationArray[0];
+                                    endLongitude = locationArray[1];
+                                  } else {
+                                    throw Exception(
+                                        "Invalid location array format in Firestore");
+                                  }
+                                } else {
+                                  throw Exception(
+                                      "Depot '$destinationName' not found in Firestore");
+                                }
+                              } catch (e) {
+                                print("Error fetching depot location: $e");
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          'Failed to load location for $destinationName')),
+                                );
+                                return; // Exit onTap if location fetch fails
+                              }
+
+                              if (endLatitude != null && endLongitude != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => BusDetailsPage(
+                                      registrationNumber:
+                                          bus['registrationNumber']!,
+                                      uniqueNumber: bus['uniqueNumber']!,
+                                      startingStation:
+                                          startingPointController.text,
+                                      endingStation: destinationController.text,
+                                      currentLocation: bus['currentLocation']!,
+                                      arrivingTime: bus['arrivingTime']!,
+                                      busType: bus['busType']!,
+                                      endLatitude: endLatitude!,
+                                      endLongitude: endLongitude!,
+                                      userStartingStation:
+                                          startingPointController.text,
+                                      userEndingStation:
+                                          destinationController.text,
+                                    ),
                                   ),
-                                ),
-                              );
+                                );
+                              }
                             },
                           ),
                         );

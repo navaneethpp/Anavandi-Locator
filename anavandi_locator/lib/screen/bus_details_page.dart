@@ -3,6 +3,8 @@
 import 'package:anavandi_locator/widgets/map.dart';
 import 'package:anavandi_locator/widgets/textForBusDetails.dart';
 import 'package:flutter/material.dart';
+import 'more_info_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BusDetailsPage extends StatelessWidget {
   final String registrationNumber;
@@ -12,6 +14,10 @@ class BusDetailsPage extends StatelessWidget {
   final String currentLocation;
   final String arrivingTime;
   final String busType;
+  final double endLatitude;
+  final double endLongitude;
+  final String userStartingStation;
+  final String userEndingStation;
 
   const BusDetailsPage({
     super.key,
@@ -22,6 +28,10 @@ class BusDetailsPage extends StatelessWidget {
     required this.currentLocation,
     required this.arrivingTime,
     required this.busType,
+    required this.endLatitude,
+    required this.endLongitude,
+    required this.userStartingStation,
+    required this.userEndingStation,
   });
 
   @override
@@ -42,7 +52,31 @@ class BusDetailsPage extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          const Positioned.fill(child: MapWidget()),
+          Positioned.fill(
+            child: FutureBuilder<Map<String, double>>(
+              future: _fetchStartingDepotLocation(userStartingStation),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(
+                      child: Text(
+                          'Error loading starting location: ${snapshot.error}'));
+                } else if (snapshot.hasData) {
+                  final startLocation = snapshot.data!;
+                  return MapWidget(
+                    endLatitude: endLatitude,
+                    endLongitude: endLongitude,
+                    userStartLatitude: startLocation['latitude']!,
+                    userStartLongitude: startLocation['longitude']!,
+                  );
+                } else {
+                  return const Center(
+                      child: Text('Could not load starting location'));
+                }
+              },
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Align(
@@ -51,28 +85,28 @@ class BusDetailsPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextForBusDetails(
-                    label: 'Registration Number: $registrationNumber',
-                    isBold: true,
+                    labelText: 'Registration Number:', // Changed to labelText
+                    dataText: registrationNumber, // Added dataText
                   ),
                   const SizedBox(height: 10),
                   TextForBusDetails(
-                    label: 'Unique Number: $uniqueNumber',
-                    isBold: true,
+                    labelText: 'Unique Number:', // Changed to labelText
+                    dataText: uniqueNumber, // Added dataText
                   ),
                   const SizedBox(height: 10),
                   TextForBusDetails(
-                    label: 'Current Location: $currentLocation',
-                    isBold: true,
+                    labelText: 'Current Location:', // Changed to labelText
+                    dataText: currentLocation, // Added dataText
                   ),
                   const SizedBox(height: 10),
                   TextForBusDetails(
-                    label: 'Arriving Time: $arrivingTime',
-                    isBold: true,
+                    labelText: 'Arriving Time:', // Changed to labelText
+                    dataText: arrivingTime, // Added dataText
                   ),
                   const SizedBox(height: 10),
                   TextForBusDetails(
-                    label: 'Bus Type: $busType',
-                    isBold: true,
+                    labelText: 'Bus Type:', // Changed to labelText
+                    dataText: busType, // Added dataText
                   ),
                 ],
               ),
@@ -94,6 +128,8 @@ class BusDetailsPage extends StatelessWidget {
                       currentLocation: currentLocation,
                       arrivingTime: arrivingTime,
                       busType: busType,
+                      userStartingStation: userStartingStation,
+                      userEndingStation: userEndingStation,
                     ),
                   ),
                 );
@@ -105,69 +141,39 @@ class BusDetailsPage extends StatelessWidget {
       ),
     );
   }
-}
 
-class MoreInfoScreen extends StatelessWidget {
-  final String registrationNumber;
-  final String uniqueNumber;
-  final String startingStation;
-  final String endingStation;
-  final String currentLocation;
-  final String arrivingTime;
-  final String busType;
+  Future<Map<String, double>> _fetchStartingDepotLocation(
+      String depotName) async {
+    double? startLatitude;
+    double? startLongitude;
 
-  const MoreInfoScreen({
-    super.key,
-    required this.registrationNumber,
-    required this.uniqueNumber,
-    required this.startingStation,
-    required this.endingStation,
-    required this.currentLocation,
-    required this.arrivingTime,
-    required this.busType,
-  });
+    try {
+      QuerySnapshot<Map<String, dynamic>> depotSnapshot =
+          await FirebaseFirestore.instance
+              .collection('Depot')
+              .where('name', isEqualTo: depotName)
+              .get();
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Bus Details'),
-            Image.asset(
-              'assets/logo.png',
-              width: 100,
-              height: 40,
-            ),
-          ],
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextForBusDetails(
-                label: 'Registration Number: $registrationNumber'),
-            const SizedBox(height: 10),
-            TextForBusDetails(label: 'Unique Number: $uniqueNumber'),
-            const SizedBox(height: 10),
-            TextForBusDetails(label: 'Starting Station: $startingStation'),
-            const SizedBox(height: 10),
-            TextForBusDetails(label: 'Ending Station: $endingStation'),
-            const SizedBox(height: 10),
-            TextForBusDetails(label: 'Current Location: $currentLocation'),
-            const SizedBox(height: 10),
-            TextForBusDetails(label: 'Arriving Time: $arrivingTime'),
-            const SizedBox(height: 10),
-            TextForBusDetails(label: 'Bus Type: $busType'),
-            // Add more detailed information here,
-            // e.g., driver name, contact number,
-            // seating capacity, etc.
-          ],
-        ),
-      ),
-    );
+      if (depotSnapshot.docs.isNotEmpty) {
+        var depotData = depotSnapshot.docs.first.data();
+        List<dynamic> locationArray = depotData['location'];
+        if (locationArray.length == 2) {
+          startLatitude = locationArray[0];
+          startLongitude = locationArray[1];
+        } else {
+          throw Exception("Invalid location array format in Firestore");
+        }
+      } else {
+        throw Exception("Depot '$depotName' not found in Firestore");
+      }
+    } catch (e) {
+      print("Error fetching starting depot location: $e");
+      throw Exception('Failed to load location for $depotName');
+    }
+
+    return {
+      'latitude': startLatitude!,
+      'longitude': startLongitude!,
+    };
   }
 }

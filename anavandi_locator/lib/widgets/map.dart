@@ -1,3 +1,4 @@
+// map.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:anavandi_locator/api/open_route_service.dart';
@@ -19,7 +20,18 @@ class Coordinates {
 }
 
 class MapWidget extends StatefulWidget {
-  const MapWidget({Key? key}) : super(key: key);
+  final double endLatitude;
+  final double endLongitude;
+  final double userStartLatitude; // Add this
+  final double userStartLongitude; // Add this
+
+  const MapWidget({
+    Key? key,
+    required this.endLatitude,
+    required this.endLongitude,
+    required this.userStartLatitude, // Add this to constructor
+    required this.userStartLongitude, // Add this to constructor
+  }) : super(key: key);
 
   @override
   State<MapWidget> createState() => _MapWidgetState();
@@ -42,7 +54,12 @@ class _MapWidgetState extends State<MapWidget> {
           context); // Show dialog on app start after frame is built
     });
     _listenToBusLocation();
-    _fetchRoute();
+    _fetchRoute(
+      widget.endLatitude,
+      widget.endLongitude,
+      widget.userStartLatitude, // Pass user start latitude
+      widget.userStartLongitude, // Pass user start longitude
+    );
   }
 
   @override
@@ -207,13 +224,15 @@ class _MapWidgetState extends State<MapWidget> {
     }
   }
 
-  Future<void> _fetchRoute() async {
-    const String apiKey =
-        openRouteSerivceAPI; // API key for oper route services
+  Future<void> _fetchRoute(double endLatitude, double endLongitude,
+      double userStartLatitude, double userStartLongitude) async {
+    // Accept user start lat and long
+    const String apiKey = openRouteSerivceAPI;
     const String apiUrl =
         'https://api.openrouteservice.org/v2/directions/driving-car';
-    const LatLng startPoint = LatLng(10.765701711281343, 75.92560325817277);
-    const LatLng endPoint = LatLng(10.767729909389303, 76.6493706289483);
+    final LatLng startPoint = LatLng(
+        userStartLatitude, userStartLongitude); // Use user start lat and long
+    final LatLng endPoint = LatLng(endLatitude, endLongitude);
 
     final url = Uri.parse(
         '$apiUrl?api_key=$apiKey&start=${startPoint.longitude},${startPoint.latitude}&end=${endPoint.longitude},${endPoint.latitude}');
@@ -418,11 +437,11 @@ class _MapWidgetState extends State<MapWidget> {
   }
 
   Marker _busEndMark() {
-    return const Marker(
-      point: LatLng(10.767571520930707, 76.64942283322327),
+    return Marker(
+      point: LatLng(widget.endLatitude, widget.endLongitude),
       width: 40,
       height: 40,
-      child: (Icon(
+      child: (const Icon(
         Icons.flag,
         color: Colors.green,
         size: iconSize,

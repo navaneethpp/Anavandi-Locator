@@ -2,29 +2,44 @@
 
 import 'package:flutter/material.dart';
 
-const Color textColor = Colors.black; // Declare the text color as a constant
+const Color textColor = Colors.black;
 
-// This widget displays a single text label with customizable styling
 class TextForBusDetails extends StatelessWidget {
-  final String label;
-  final bool isBold; // New parameter to decide text weight
+  final String labelText; // Changed from 'label' to 'labelText'
+  final String dataText; // Added 'dataText' for the data part
 
   const TextForBusDetails({
     super.key,
-    required this.label,
-    this.isBold = false, // Default to bold text
+    required this.labelText, // Now required labelText
+    required this.dataText, // Now required dataText
   });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 18,
-        color: textColor,
-        fontWeight:
-            isBold ? FontWeight.bold : FontWeight.normal, // Conditional styling
-      ),
+    return Column(
+      // Using Column to arrange label and data vertically
+      crossAxisAlignment: CrossAxisAlignment.start, // Align text to the start
+      children: [
+        Text(
+          // Label text (bold)
+          labelText, // Use labelText
+          style: const TextStyle(
+            fontSize: 16, // Slightly smaller for labels
+            color: textColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 2), // Small spacing between label and data
+        Text(
+          // Data text (normal weight)
+          dataText, // Use dataText
+          style: const TextStyle(
+            fontSize: 18, // Slightly larger for data
+            color: textColor,
+            fontWeight: FontWeight.normal,
+          ),
+        ),
+      ],
     );
   }
 }
