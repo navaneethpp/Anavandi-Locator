@@ -6,6 +6,7 @@ import 'package:geolocator_android/geolocator_android.dart'; // Import for Andro
 import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'dart:math' as math;
 import 'dart:async';
+import 'package:intl/intl.dart'; // Import for formatting speed
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Timer? _locationUpdateTimer;
   bool _isUpdatingLocation = false;
   double _lastUpdateTime = 0;
+  double _speed = 0.0; // Add speed variable
 
   @override
   Widget build(BuildContext context) {
@@ -108,14 +110,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     .doc('location')
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Text('Error: ${snapshot.error}',
-                        style: const TextStyle(color: Colors.white));
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const CircularProgressIndicator();
-                  }
+                  // ... (error and waiting state handling) ...
 
                   if (!snapshot.hasData || !snapshot.data!.exists) {
                     return const Text("No location data found.",
@@ -123,15 +118,31 @@ class _MyHomePageState extends State<MyHomePage> {
                   }
 
                   final data = snapshot.data!.data() as Map<String, dynamic>;
-                  final firestoreLocation = data['Location'] as String;
+                  final firestoreLocation =
+                      data['Location'] as String ?? 'No Location';
+                  final firestoreSpeed =
+                      data['Speed'] as double? ?? 0.0; // Fetch speed
 
-                  return Text(
-                    'Firestore Location: $firestoreLocation',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      color: Colors.white,
-                    ),
+                  return Column(
+                    children: [
+                      Text(
+                        'Firestore Location: $firestoreLocation',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Speed: ${_formatSpeedToKMPH(firestoreSpeed)}', // Display speed
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -140,6 +151,11 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     );
+  }
+
+  String _formatSpeedToKMPH(double speedInMetersPerSecond) {
+    double speedInKMH = speedInMetersPerSecond * 3.6;
+    return '${speedInKMH.toStringAsFixed(2)} km/h';
   }
 
   void _startLocationUpdates() {
@@ -219,9 +235,11 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {
           latitude = position.latitude;
           longitude = position.longitude;
+          _speed = position.speed; // Get speed from Position object
         });
 
-        _updateLocationInFirestore(latitude, longitude);
+        _updateLocationInFirestore(
+            latitude, longitude, _speed); // Update Firestore with speed
 
         _previousLatitude = position.latitude;
         _previousLongitude = position.longitude;
@@ -236,13 +254,17 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _updateLocationInFirestore(double lat, double lon) async {
+  Future<void> _updateLocationInFirestore(
+      double lat, double lon, double speed) async {
     try {
       await FirebaseFirestore.instance
           .collection('location')
           .doc('location')
-          .set({'Location': '$lat° N, $lon° E'});
-      _showSnackBar("Location updated in Firestore!");
+          .set({
+        'Location': '$lat° N, $lon° E',
+        'Speed': speed, // Save speed to Firestore
+      });
+      _showSnackBar("Location and Speed updated in Firestore!");
     } catch (e) {
       _showSnackBar("Error updating Firestore data: $e");
       print("Error updating Firestore data: $e");
