@@ -1,5 +1,16 @@
 // main_screen.dart
-// This page is the entry page of the app
+// This page is the entry page of the app and sets up the main user interface structure.
+// It defines the MainScreen widget which serves as the base for the entire application,
+// incorporating a background image, a bottom navigation bar, and page switching functionality.
+
+// Working:
+// - Sets up the main application screen using a Stack to layer background elements and the main Scaffold.
+// - Implements a full-screen background image with a blur effect and a dark overlay for visual styling.
+// - Uses a Scaffold as the primary layout container, making its background transparent to show the Stack background.
+// - Defines a BottomNavigationBar for tab-based navigation, allowing users to switch between different sections of the app.
+// - Manages page switching using `_currentIndex` to track the currently selected tab and a `_pages` List to hold the widgets for each tab (FavoritePage, RecentPage, BusSelectionMenu, NotificationPage, AboutPage).
+// - Uses `AnimatedSwitcher` to provide animated transitions for the icons in the BottomNavigationBar when tabs are switched, enhancing the user experience with visual feedback on selection.
+// - The `_onTabTapped` function updates the `_currentIndex` state variable, triggering a rebuild of the Scaffold body to display the corresponding page from the `_pages` list.
 
 import 'package:anavandi_locator/widgets/bus_selection_menu.dart';
 import 'package:flutter/material.dart';

@@ -1,5 +1,21 @@
 // favorite_page.dart
 
+// This page displays a list of "favorite" bus routes saved by the user.
+// It allows users to view their saved routes and remove routes from their favorites.
+
+// Working:
+// - Manages a stateful list `favoriteRoutes` to store the names of favorite routes.
+// - Displays an AppBar with the title "Favorites" and the application logo.
+// - Uses a Stack as the main layout structure.
+// - Inside the Stack, a Column is used to arrange the content vertically.
+// - An Expanded widget and ListView.builder are used to create a scrollable list of favorite routes.
+// - Each route is displayed in a Card with a ListTile.
+// - Each ListTile shows a favorite icon, the route name as the title, and a delete icon button as a trailing.
+// - The delete icon button uses the `_removeFromFavorites` function to remove the route from the `favoriteRoutes` list,
+//   and `setState` is called to update the UI.
+// - The `onTap` function of ListTile is currently empty but is intended for future navigation
+//   to a details page or map view for the selected favorite route.
+
 import 'package:flutter/material.dart';
 
 class FavoritePage extends StatefulWidget {

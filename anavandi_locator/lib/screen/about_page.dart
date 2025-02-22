@@ -1,5 +1,20 @@
 // about_page.dart
 
+// This page is the "About" screen of the application.
+// It displays information about the development team members and their roles,
+// as well as the current version of the application.
+
+// Working:
+// - Uses a Scaffold as the base structure with a transparent background.
+// - Includes an AppBar with a title "About" and the application logo.
+// - The main body is a Stack to allow positioning elements, especially the version text at the bottom.
+// - Inside the Stack, a Padding widget provides spacing around the content.
+// - A Column arranges the content vertically, including:
+//   - A centered "Our Team" title.
+//   - TeamMemberRole widgets, each displaying a role and a list of team member names.
+// - A Center widget with Align is used to position the "Version" text at the bottom center of the screen.
+// - TeamMemberRole is a custom StatelessWidget to display a role and names in a structured format.
+
 import 'package:flutter/material.dart';
 
 class AboutPage extends StatelessWidget {

@@ -1,4 +1,103 @@
 // map.dart
+// This widget displays a FlutterMap view to show bus location, user location, and route polyline.
+// It integrates with Firebase Firestore to get real-time bus location updates and
+// uses OpenRouteService API to fetch route polyline between user and bus destination.
+// Includes features like centering map on bus or user location, refetching user location,
+// and a compass widget for orientation.
+
+// Documentation:
+//
+// Widget Purpose:
+// The MapWidget is a StatefulWidget designed to display an interactive map interface using FlutterMap.
+// It provides real-time tracking of bus location, displays user's current location (optional, based on user travel status),
+// and visualizes the route polyline from the user's starting point to the bus's destination.
+// The widget is intended to give users a clear visual representation of the bus's current position
+// in relation to their own location and the intended route.
+//
+// Key Features:
+// - Real-time Bus Location Tracking: Listens to location updates from Firebase Firestore and updates the bus marker on the map dynamically.
+// - User Location Display:  Optionally displays the user's current location on the map. Location fetching is initiated based on user's travel status (in or out of bus).
+// - Route Polyline Visualization: Fetches driving route polyline using OpenRouteService API and renders it on the map, showing the path from user's assumed starting point to the bus destination.
+// - Map Controls: Provides a menu (using a FloatingActionButton and BottomSheet) with options to:
+//     - Center the map on the current bus location.
+//     - Center the map on the user's location (conditionally available).
+//     - Re-fetch user's location (conditionally available).
+// - Compass Integration: Includes a CompassWidget (from compass_widget.dart) to provide directional orientation on the map.
+// - Location Permission Handling: Manages location permissions using `geolocator` package, requesting permissions if needed and handling denied/permanently denied scenarios.
+// - User Travel Status Dialog: On widget initialization, presents a dialog to the user asking if they are traveling in the bus.
+//   This status affects user location fetching behavior (periodic fetching when not in bus, stopped fetching when in bus).
+// - Error Handling: Includes basic error handling for location service issues, permission denials, API call failures, and invalid data formats, displaying SnackBar messages for user feedback.
+//
+// Working:
+// - Initialization (`initState`):
+//     - Shows a "Travelling in Bus?" dialog to determine user's travel status using `_showTravelStatusDialog`.
+//     - Starts listening for bus location updates from Firestore using `_listenToBusLocation`.
+//     - Fetches the route polyline from user's assumed starting location to the bus destination using `_fetchRoute`.
+// - User Location Management:
+//     - `_initializeUserLocation`: Fetches the user's current location using `geolocator`.
+//       This function handles location service availability, permission checks, and updates the `_userLocation` state variable.
+//       Map is moved to center on user location upon successful fetch.
+//     - Location fetching can be triggered manually from the menu or automatically based on user's travel status and a periodic timer (`_locationFetchTimer`).
+//     - Periodic location fetching starts if user indicates they are NOT in the bus and is stopped if they indicate they ARE in the bus.
+// - Bus Location Tracking (`_listenToBusLocation`):
+//     - Sets up a Firestore snapshot listener on 'location/location' document to receive real-time bus location updates.
+//     - Extracts latitude and longitude coordinates from the 'Location' field in Firestore data using `_extractCoordinates`.
+//     - Updates the `_busCurrentLocation` state variable and moves the map to center on the bus location whenever a valid update is received.
+// - Route Polyline Fetching (`_fetchRoute`):
+//     - Uses OpenRouteService API to fetch driving directions between user's starting coordinates (passed as widget parameters) and bus destination coordinates (passed as widget parameters).
+//     - Parses the API response to extract route coordinates and updates the `_polylinePoints` state variable, triggering polyline rendering on the map.
+// - Map Building (`_buildMap`):
+//     - Uses `FutureBuilder` to handle asynchronous initial location loading (either bus or user location for initial map center).
+//     - Creates a `FlutterMap` widget with:
+//         - `TileLayer` for displaying OpenStreetMap tiles.
+//         - `MarkerLayer` to display markers for bus location, user location (conditional), and bus destination.
+//         - `PolylineLayer` (conditional) to render the route polyline if `_polylinePoints` is populated.
+//         - `MapController` (`_mapController`) to programmatically control the map (move, zoom).
+// - Map Controls Menu (`_showMenu`, `_centerMapOnBusLocation`, `_centerMapOnUserLocation`):
+//     - Provides a bottom sheet menu with options to center the map on bus location, user location, and refetch user location.
+//     - These functions use `_mapController.move` to reposition the map view.
+// - Markers (`_buildMarkers`, `_createBusMarker`, `_createUserMarker`, `_busEndMark`):
+//     - Creates `Marker` widgets for bus, user, and bus destination locations, using Icons and setting marker points, sizes, and colors.
+// - Utility Functions:
+//     - `_extractCoordinates`: Parses a location string (latitude, longitude format) into a `Coordinates` object.
+//     - `_getUserOrBusLocation`: Determines the initial map center based on availability of bus or user location.
+//
+// UI Elements:
+// - Scaffold: Provides basic page structure.
+// - Stack: Used for layering map, loading indicator, compass, and watermark.
+// - FlutterMap: The core map widget from flutter_map package.
+// - TileLayer: Displays map tiles.
+// - MarkerLayer: Renders markers on the map.
+// - PolylineLayer: Renders route polyline on the map.
+// - FloatingActionButton: Opens the map controls menu.
+// - BottomSheet: Displays map control options.
+// - CircularProgressIndicator: Shows loading indication while fetching user location.
+// - CompassWidget: (Imported from compass_widget.dart) Displays compass orientation.
+// - Text (Watermark): Displays OpenStreetMap attribution.
+// - AlertDialog: "Travelling in Bus?" dialog.
+// - SnackBar: Displays error messages to the user.
+//
+// State Variables:
+// - `_mapController`: `MapController` instance to control the FlutterMap.
+// - `_userLocation`: `LatLng?` for user's current location.
+// - `_busCurrentLocation`: `LatLng?` for bus's current location.
+// - `_loadingLocation`: `bool` to track if user location is being fetched.
+// - `_polylinePoints`: `List<LatLng>` to store route polyline coordinates.
+// - `_isTravellingInBus`: `bool?` to store user's travel status (null initially, true/false after dialog).
+// - `_locationFetchTimer`: `Timer?` to manage periodic user location fetching.
+// - `_mapReady`: `bool` to track if the FlutterMap widget is ready.  **[NEW: for error fix]**
+//
+// Dependencies:
+// - flutter_map: For map display and interaction.
+// - latlong2: For LatLng coordinate class.
+// - geolocator: For fetching device location.
+// - font_awesome_flutter: For FontAwesome icons.
+// - http: For making HTTP requests to OpenRouteService API.
+// - cloud_firestore: For accessing bus location data from Firebase Firestore.
+// - compass_widget.dart: For the CompassWidget implementation.
+// - constants.dart: For map-related constants (iconSize, zoomValue).
+// - open_route_service.dart: (Assumed) For API key constant for OpenRouteService.
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:anavandi_locator/api/open_route_service.dart';
@@ -45,10 +144,12 @@ class _MapWidgetState extends State<MapWidget> {
   List<LatLng> _polylinePoints = [];
   bool? _isTravellingInBus; // Added state variable
   Timer? _locationFetchTimer; // Timer for periodic location fetching
+  bool _mapReady = false; // **[NEW] Flag to track map readiness**
 
   @override
   void initState() {
     super.initState();
+    print("MapWidgetState - initState"); // **[DEBUG]**
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showTravelStatusDialog(
           context); // Show dialog on app start after frame is built
@@ -173,11 +274,13 @@ class _MapWidgetState extends State<MapWidget> {
   }
 
   void _listenToBusLocation() {
+    print("_listenToBusLocation - start listening"); // **[DEBUG]**
     FirebaseFirestore.instance
         .collection('location')
         .doc('location')
         .snapshots()
         .listen((snapshot) {
+      print("_listenToBusLocation - snapshot received"); // **[DEBUG]**
       if (snapshot.exists) {
         final data = snapshot.data();
         if (data != null && data.containsKey('Location')) {
@@ -188,9 +291,14 @@ class _MapWidgetState extends State<MapWidget> {
             setState(() {
               _busCurrentLocation =
                   LatLng(coordinates.latitude, coordinates.longitude);
-              if (_busCurrentLocation != null) {
-                // Center map on bus location update
+              if (_busCurrentLocation != null && _mapReady) {
+                // **[FIX] Check if map is ready**
+                print(
+                    "_listenToBusLocation - moving map to bus location"); // **[DEBUG]**
                 _mapController.move(_busCurrentLocation!, zoomValue);
+              } else {
+                print(
+                    "_listenToBusLocation - map not ready, or bus location null"); // **[DEBUG]**
               }
             });
           } else {
@@ -351,11 +459,13 @@ class _MapWidgetState extends State<MapWidget> {
   }
 
   void _centerMapOnBusLocation() {
-    if (_busCurrentLocation != null) {
+    if (_busCurrentLocation != null && _mapReady) {
+      // **[FIX] Check if map is ready**
       _mapController.move(_busCurrentLocation!, zoomValue);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bus location is not available.')),
+        const SnackBar(
+            content: Text('Bus location is not available or map not ready.')),
       );
     }
   }
@@ -370,6 +480,15 @@ class _MapWidgetState extends State<MapWidget> {
           options: MapOptions(
             initialCenter: initialCenter,
             initialZoom: zoomValue,
+            onMapReady: () {
+              // **[FIX] onMapReady callback**
+              setState(() {
+                _mapReady =
+                    true; // **[FIX] Set mapReady to true when map is ready**
+              });
+              print(
+                  "FlutterMap - onMapReady callback triggered"); // **[DEBUG]**
+            },
           ),
           children: [
             TileLayer(

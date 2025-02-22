@@ -1,5 +1,38 @@
 // more_info_screen.dart
 
+// This page provides a screen to display more detailed information about a specific bus.
+// It fetches and shows real-time updates like current location name, speed, and predicted arrival time
+// in addition to static bus details passed from the previous screen (BusDetailsPage).
+
+// Working:
+// - Receives static bus details (registration number, unique number, stations, bus type) and destination coordinates
+//   from the BusDetailsPage as parameters.
+// - Uses `initState` to initialize the current bus location name from the initially provided location string
+//   and starts listening to real-time location updates from Firestore using `_listenToBusLocationUpdates`.
+// - `_listenToBusLocationUpdates` function sets up a snapshot listener on the 'location/location' document in Firestore.
+//   Upon receiving updates:
+//     - Extracts location coordinates and speed from the Firestore data.
+//     - Calls `_updateLocationNameIfNeeded` to reverse geocode the coordinates into a human-readable location name.
+//     - Updates the UI state with the current bus speed (`_currentBusSpeed`).
+//     - Calls `_updateArrivalTimePrediction` to calculate and update the predicted arrival time based on
+//       the current location, speed, and destination coordinates.
+// - `_extractCoordinates` function parses the location string (latitude, longitude format) into a `Coordinates` object.
+// - `_getLocationNameFromCoordinates` performs reverse geocoding using the OpenCage Geocoder API
+//   to convert coordinates into a location name.
+// - `_updateLocationNameIfNeeded` checks for significant location changes before updating the displayed location name
+//   to avoid excessive API calls.
+// - `_isSignificantLocationChange` determines if the new coordinates are significantly different from the last ones.
+// - `_updateArrivalTimePrediction` calculates the predicted arrival time to the destination based on:
+//     - Distance to the destination (calculated using `Geolocator.distanceBetween`).
+//     - Current bus speed fetched from Firestore.
+//     - It formats the predicted time in hours and minutes for display.
+// - The UI is built using a `Scaffold` with an `AppBar`.
+// - The body is a `Padding` containing a `Column` that displays bus details using `TextForBusDetails` widgets.
+//   Details shown include: Registration Number, Unique Number, User Starting Station, User Destination,
+//   Bus Starting Station, Bus Ending Station, Current Location Name (updated in real-time),
+//   Current Speed (updated in real-time), Predicted Arrival Time (updated in real-time), and Bus Type.
+// - State management is used to update the location name, speed, and predicted arrival time dynamically as Firestore data changes.
+
 import 'package:anavandi_locator/widgets/textForBusDetails.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

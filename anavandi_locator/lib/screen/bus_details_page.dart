@@ -1,4 +1,24 @@
-// BusDetailsPage.dart
+// bus_details_page.dart
+
+// This page displays detailed information about a selected bus, including its
+// registration number, unique number, current location, arrival time, and bus type.
+// It also embeds a MapWidget to show the bus location and a route (if available).
+// Additionally, it provides a button to navigate to the MoreInfoScreen for extended details.
+
+// Working:
+// - Fetches bus details as parameters passed from the previous screen (BusSelectionMenu).
+// - Uses a FutureBuilder to asynchronously fetch the starting depot location from Firestore
+//   based on the `userStartingStation` parameter.
+// - Embeds a MapWidget within the Positioned.fill widget to take up the entire available space.
+//   The MapWidget receives the endLatitude, endLongitude, and the fetched starting depot
+//   latitude and longitude as userStartLatitude and userStartLongitude.
+// - Displays bus details (Registration Number, Unique Number, Current Location, Arriving Time, Bus Type)
+//   using custom TextForBusDetails widgets arranged in a Column within a Padding and Align(topLeft).
+// - Includes a button at the top right corner that navigates to the MoreInfoScreen, passing along
+//   all the bus details and location information.
+// - The _fetchStartingDepotLocation function queries the 'Depot' collection in Firestore
+//   to retrieve the location (latitude and longitude) of the starting depot based on the provided depot name.
+//   It returns a Map<String, double> containing 'latitude' and 'longitude' or throws an exception if fetching fails.
 
 import 'package:anavandi_locator/widgets/map.dart';
 import 'package:anavandi_locator/widgets/textForBusDetails.dart';

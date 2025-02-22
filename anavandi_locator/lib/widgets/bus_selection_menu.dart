@@ -1,5 +1,76 @@
 // bus_selection_menu.dart
-// This page include the entrance text field
+// This page implements the bus selection menu, allowing users to find available buses
+// based on starting and destination points. It includes input fields for users to enter
+// their desired start and end locations, provides suggestions based on depot names fetched
+// from Firestore, validates user inputs, and displays a list of available buses for the selected route.
+// Users can also favorite buses and navigate to detailed bus information pages.
+
+// Documentation:
+//
+// Page Purpose:
+// The BusSelectionMenu page is the primary interface for users to search for buses. It allows users to:
+// - Enter their desired starting point and destination from a list of predefined depots.
+// - Receive suggestions for depot names as they type, improving input accuracy and user experience.
+// - Validate their selected starting point and destination against a database of valid depot locations.
+// - View a list of available buses for the specified route (currently simulated with static data,
+//   but designed to be populated dynamically in future implementations).
+// - Favorite buses for easy access later (functionality is currently visual and local,
+//   backend integration would be needed for persistent favorites).
+// - Navigate to the BusDetailsPage to get more detailed information about a selected bus and view its location on a map.
+//
+// Working:
+// - Data Fetching on Initialization:
+//     - In `initState`, the page fetches a list of all depot names from the 'Depot' collection in Firestore using `_fetchDepotNames`.
+//     - Displays a `LinearProgressIndicator` while loading depot names, enhancing user experience by indicating loading state.
+// - Input Fields and Suggestions:
+//     - Uses two `TextField` widgets for users to enter their starting point and destination.
+//     - Implements real-time suggestions for depot names as the user types in each `TextField`.
+//     - `_updateStartingSuggestionList` and `_updateDestinationSuggestionList` functions filter the `allDepotNames` list
+//       based on user input and update `startingSuggestionList` and `destinationSuggestionList` respectively.
+//     - `_buildSuggestionList` is a helper function that dynamically creates a scrollable list of suggestions displayed below each `TextField`.
+//     - Selecting a suggestion from the list populates the corresponding `TextField` with the selected depot name and clears the suggestion list.
+// - Input Validation:
+//     - `findBuses` function is triggered when the "Find Buses" button is pressed.
+//     - Validates if both starting point and destination fields are filled. If not, displays an AlertDialog error message.
+//     - Validates if the starting point and destination are the same. If so, displays an AlertDialog error message.
+//     - Validates if the entered starting point and destination exist in the fetched `allDepotNames` list.
+//       If either or both are invalid, displays an AlertDialog indicating location not found in the database.
+// - Bus Search and Display (Simulated):
+//     - Currently, bus search is simulated. The `findBuses` function populates the `availableBuses` list with static bus data.
+//     - In a real application, this section would be replaced with logic to query a backend service or database
+//       to retrieve dynamically available buses based on the user-selected starting point and destination.
+//     - Displays the `availableBuses` in a `ListView.builder`. Each bus is shown in a `Card` with basic details
+//       like unique number and arrival time.
+// - Favorite Bus Functionality:
+//     - Each bus item in the `ListView` has a favorite icon button.
+//     - `_toggleFavorite` function manages the local `favoriteBuses` list. Tapping the favorite icon adds or removes the bus
+//       from this list, visually toggling the icon between `favorite` and `favorite_border`.
+//     - Note: Favorite status is currently not persisted across app sessions and is only visually represented.
+//       Persistent favorites would require backend integration and local storage.
+// - Navigation to Bus Details Page:
+//     - Tapping on a bus item in the `ListView` triggers navigation to the `BusDetailsPage`.
+//     - Before navigation, it fetches the latitude and longitude for the selected destination depot from Firestore
+//       using the depot name and passes these coordinates along with other bus details to the `BusDetailsPage`.
+//     - Displays a SnackBar error message if fetching destination location from Firestore fails.
+// - UI Elements:
+//     - Scaffold: Provides the basic page structure with a transparent background.
+//     - AppBar: Contains the title 'Find Your Bus' and the application logo.
+//     - Stack: Used as the main layout container.
+//     - Padding: Provides padding around the main content.
+//     - Column: Arranges the input fields, buttons, and bus list vertically.
+//     - TextField: Input fields for starting point and destination with InputDecoration for styling and hint text.
+//     - ElevatedButton: "Find Buses" button to trigger bus search.
+//     - ListView.builder: Displays the list of available buses.
+//     - Card & ListTile: Used to structure and style each bus item in the list.
+//     - IconButton: Favorite button for each bus item.
+//     - LinearProgressIndicator: Displays while depot names are loading.
+//     - AlertDialog: Used to display error messages for input validation failures and location fetching errors.
+//
+// Future Enhancements (Beyond the current implementation):
+// - Dynamic Bus Data: Implement dynamic fetching of available buses from a backend service or database.
+// - Persistent Favorites: Integrate backend and local storage to persist favorite buses across app sessions.
+// - Real-time Bus Search: Implement real-time updates of bus availability and potentially bus locations on the map directly from this menu.
+// - Enhanced UI/UX: Improve UI elements, styling, and user interactions based on user feedback and usability testing.
 
 import 'package:anavandi_locator/screen/bus_details_page.dart';
 import 'package:flutter/material.dart';
