@@ -1,0 +1,2 @@
+/home/navaneeth/Anavandi-Locator/anavandi_companion/android/app/.cxx/Debug/496o111s/armeabi-v7a/CMakeFiles/edit_cache.dir
+/home/navaneeth/Anavandi-Locator/anavandi_companion/android/app/.cxx/Debug/496o111s/armeabi-v7a/CMakeFiles/rebuild_cache.dir

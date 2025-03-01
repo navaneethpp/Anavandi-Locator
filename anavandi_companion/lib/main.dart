@@ -2,10 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geolocator_android/geolocator_android.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,64 +17,61 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Anavandi Companion',
+      title: 'Bus Location Tracker',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Anavandi Companion'),
+      home: const MyHomePage(title: 'Bus Location Tracker'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
+
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String bdata = "START";
-  double latitude = 0.0;
-  double longitude = 0.0;
+  String _buttonText = "START";
+  double _latitude = 0.0;
+  double _longitude = 0.0;
   double _previousLatitude = 0.0;
   double _previousLongitude = 0.0;
-  bool locationInitialized = false;
+  bool _locationInitialized = false;
   Timer? _locationUpdateTimer;
   bool _isUpdatingLocation = false;
   double _lastUpdateTime = 0;
   double _speed = 0.0;
-  List<String> _documentList =
-      []; // List to hold document IDs in 'location' collection
-  String? _selectedDocument; // Currently selected document ID
+  List<String> _busList = [];
+  String? _selectedBusUniqueNumber;
 
   @override
   void initState() {
     super.initState();
-    _fetchDocumentList(); // Fetch document IDs from 'location' collection
+    _fetchBusList();
   }
 
-  Future<void> _fetchDocumentList() async {
+  Future<void> _fetchBusList() async {
     try {
-      QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
-          .instance
-          .collection('location')
-          .get(); // Fetch from 'location' collection
-      List<String> documentIds = snapshot.docs
-          .map((doc) => doc.id)
-          .toList(); // Document IDs are the names
+      QuerySnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance.collection('busData').get();
+      List<String> busUniqueNumbers = snapshot.docs
+          .map((doc) => doc.data()['busUniqueNumber'] as String)
+          .toList();
       setState(() {
-        _documentList = documentIds;
-        if (_documentList.isNotEmpty) {
-          _selectedDocument =
-              _documentList[0]; // Select the first document by default
+        _busList = busUniqueNumbers;
+        if (_busList.isNotEmpty) {
+          _selectedBusUniqueNumber = _busList[0];
         }
       });
     } catch (e) {
-      _showSnackBar("Error fetching document list: $e");
-      print("Error fetching document list: $e");
+      _showSnackBar("Error fetching bus list: $e");
+      print("Error fetching bus list: $e");
     }
   }
 
@@ -84,161 +79,111 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(
-          widget.title,
-          style: const TextStyle(color: Colors.white),
-        ),
+        backgroundColor: Colors.indigo,
+        title: Text(widget.title, style: const TextStyle(color: Colors.white)),
       ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.black, Colors.deepPurple],
+            colors: [Colors.indigo, Colors.black],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
+        padding: const EdgeInsets.all(20.0),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_documentList
-                  .isNotEmpty) // Show dropdown only if document list is loaded
-                DropdownButtonFormField<String>(
-                  value: _selectedDocument,
-                  decoration: InputDecoration(
-                    labelText: 'Select Document', // Updated label
-                    labelStyle: const TextStyle(color: Colors.white),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.white),
-                      borderRadius: BorderRadius.circular(15),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                if (_busList.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    value: _selectedBusUniqueNumber,
+                    decoration: InputDecoration(
+                      labelText: 'Select Bus',
+                      labelStyle: const TextStyle(color: Colors.white),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.black),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
+                    dropdownColor: Colors.indigoAccent,
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    items: _busList.map((String busUniqueNumber) {
+                      return DropdownMenuItem<String>(
+                        value: busUniqueNumber,
+                        child: Text(busUniqueNumber),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedBusUniqueNumber = newValue;
+                      });
+                    },
+                  )
+                else
+                  const Text(
+                    "Loading Buses...",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
-                  dropdownColor: Colors.deepPurpleAccent,
-                  style: const TextStyle(color: Colors.white, fontSize: 18),
-                  items: _documentList.map((String documentId) {
-                    // Use document IDs in dropdown
-                    return DropdownMenuItem<String>(
-                      value: documentId,
-                      child: Text(documentId),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: () {
                     setState(() {
-                      _selectedDocument = newValue;
+                      if (_buttonText == "START") {
+                        _buttonText = "STOP";
+                        if (_selectedBusUniqueNumber != null) {
+                          _startLocationUpdates();
+                        } else {
+                          _showSnackBar(
+                              "Please select a bus from the dropdown.");
+                        }
+                      } else {
+                        _buttonText = "START";
+                        _stopLocationUpdates();
+                      }
                     });
                   },
-                ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    if (bdata == "START") {
-                      bdata = "STOP";
-                      if (_selectedDocument != null) {
-                        _startLocationUpdates();
-                      } else {
-                        _showSnackBar(
-                            "Please select a document from the dropdown."); // Updated message
-                      }
-                    } else {
-                      bdata = "START";
-                      _stopLocationUpdates();
-                    }
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurpleAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 20,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigoAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 10,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 10,
-                ),
-                child: Text(
-                  bdata,
-                  style: const TextStyle(
-                    fontSize: 40,
+                  child: Text(
+                    _buttonText,
+                    style: const TextStyle(fontSize: 40),
                   ),
                 ),
-              ),
-              const SizedBox(height: 40),
-              if (_selectedDocument !=
-                  null) // Show location data only when a document is selected
-                StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('location')
-                      .doc(_selectedDocument!) // Use selected document ID
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Text('Error: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.white));
-                    }
-
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const CircularProgressIndicator();
-                    }
-
-                    if (!snapshot.hasData || !snapshot.data!.exists) {
-                      return Text(
-                          "No location data found for $_selectedDocument.", // Updated message
-                          style: TextStyle(color: Colors.white));
-                    }
-
-                    final data = snapshot.data!.data() as Map<String, dynamic>;
-                    String firestoreLocationString = 'No Location Data';
-                    if (data.containsKey('Location') &&
-                        data['Location'] is List) {
-                      List<dynamic> locationArray =
-                          data['Location'] as List<dynamic>;
-                      if (locationArray.length == 2) {
-                        double lat = locationArray[0] as double? ?? 0.0;
-                        double lon = locationArray[1] as double? ?? 0.0;
-                        firestoreLocationString =
-                            '${lat.toStringAsFixed(6)}° N, ${lon.toStringAsFixed(6)}° E';
-                      }
-                    }
-
-                    final firestoreSpeed = data['Speed'] as double? ?? 0.0;
-
-                    return Column(
-                      children: [
-                        Text(
-                          'Selected Document: $_selectedDocument', // Updated text
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 16),
-                        ),
-                        Text(
-                          'Firestore Location: $firestoreLocationString',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Speed: ${_formatSpeedToKMPH(firestoreSpeed)}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                const SizedBox(height: 30),
+                Text(
+                  'Last Latitude: ${_latitude.toStringAsFixed(6)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
                 ),
-            ],
+                Text(
+                  'Last Longitude: ${_longitude.toStringAsFixed(6)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                Text(
+                  'Speed: ${_formatSpeedToKMPH(_speed)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),
@@ -268,6 +213,10 @@ class _MyHomePageState extends State<MyHomePage> {
     _isUpdatingLocation = false;
     _locationUpdateTimer?.cancel();
     _locationUpdateTimer = null;
+    setState(() {
+      _speed = 0.0;
+    });
+    _updateLocationInFirestore(_latitude, _longitude, _speed);
   }
 
   Future<Position?> _getCurrentLocation() async {
@@ -323,18 +272,21 @@ class _MyHomePageState extends State<MyHomePage> {
       if (Geolocator.distanceBetween(_previousLatitude, _previousLongitude,
                   position.latitude, position.longitude) >
               distanceThreshold ||
-          !locationInitialized) {
+          !_locationInitialized) {
         setState(() {
-          latitude = position.latitude;
-          longitude = position.longitude;
-          _speed = position.speed;
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+          // Apply speed threshold here:
+          _speed = position.speed < 0.1 / 3.6
+              ? 0.0
+              : position.speed; // Threshold at 0.1 km/h (in m/s)
         });
 
-        _updateLocationInFirestore(latitude, longitude, _speed);
+        _updateLocationInFirestore(_latitude, _longitude, _speed);
 
         _previousLatitude = position.latitude;
         _previousLongitude = position.longitude;
-        locationInitialized = true;
+        _locationInitialized = true;
         _lastUpdateTime = currentTime;
       }
 
@@ -347,24 +299,42 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _updateLocationInFirestore(
       double lat, double lon, double speed) async {
-    if (_selectedDocument == null) {
-      _showSnackBar("No document selected!");
+    if (_selectedBusUniqueNumber == null) {
+      _showSnackBar("No bus selected!");
       return;
     }
     try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('busData')
+          .where('busUniqueNumber', isEqualTo: _selectedBusUniqueNumber)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        _showSnackBar("Bus document not found for: $_selectedBusUniqueNumber");
+        print("Bus document not found for: $_selectedBusUniqueNumber");
+        return;
+      }
+
+      String documentIdToUpdate = querySnapshot.docs.first.id;
+
+      // Apply speed threshold again here before sending to Firestore (optional, but consistent):
+      double speedToSend =
+          speed < 0.1 / 3.6 ? 0.0 : speed * 3.6; // Threshold before sending
+
       await FirebaseFirestore.instance
-          .collection('location')
-          .doc(_selectedDocument!)
+          .collection('busData')
+          .doc(documentIdToUpdate)
           .update({
-        // Use .update() to update existing document
-        'Location': [lat, lon],
-        'Speed': speed,
+        'location': [lat, lon],
+        'speed': speedToSend, // Send thresholded speed to Firestore in km/h
       });
       _showSnackBar(
-          "Location and Speed updated for $_selectedDocument in Firestore!");
+          "Location and Speed updated for Bus: $_selectedBusUniqueNumber in Firestore!");
     } catch (e) {
-      _showSnackBar("Error updating Firestore data for $_selectedDocument: $e");
-      print("Error updating Firestore data for $_selectedDocument: $e");
+      _showSnackBar(
+          "Error updating Firestore data for Bus: $_selectedBusUniqueNumber: $e");
+      print(
+          "Error updating Firestore data for Bus: $_selectedBusUniqueNumber: $e");
     }
   }
 
