@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "819865969343",
-    "project_id": "anavandi-companion",
-    "storage_bucket": "anavandi-companion.firebasestorage.app"
+    "project_number": "450826157923",
+    "project_id": "anavandi-project",
+    "storage_bucket": "anavandi-project.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:819865969343:android:1b48ac84813f560ad4dc0a",
+        "mobilesdk_app_id": "1:450826157923:android:f934aea18e0d174f8e9d56",
         "android_client_info": {
           "package_name": "com.example.anavandi_companion"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCVdbaCqbpywxynZ4ci-dC0-tsQAlkqpjs"
+          "current_key": "AIzaSyAnxzSvZbLs9z-MzjqMDO491oNzCqUo714"
         }
       ],
       "services": {
@@ -26,7 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:819865969343:android:59bd98ca1f60153bd4dc0a",
+        "mobilesdk_app_id": "1:450826157923:android:228d4c7babd247688e9d56",
         "android_client_info": {
           "package_name": "com.example.anavandi_locator"
         }
@@ -34,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCVdbaCqbpywxynZ4ci-dC0-tsQAlkqpjs"
+          "current_key": "AIzaSyAnxzSvZbLs9z-MzjqMDO491oNzCqUo714"
         }
       ],
       "services": {
