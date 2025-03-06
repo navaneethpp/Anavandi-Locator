@@ -61,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
       QuerySnapshot<Map<String, dynamic>> snapshot =
           await FirebaseFirestore.instance.collection('busData').get();
       List<String> busUniqueNumbers = snapshot.docs
-          .map((doc) => doc.data()['busUniqueNumber'] as String)
+          .map((doc) => doc.data()['busRegistrationNumber'] as String)
           .toList();
       setState(() {
         _busList = busUniqueNumbers;
@@ -301,19 +301,26 @@ class _MyHomePageState extends State<MyHomePage> {
       double lat, double lon, double speed) async {
     if (_selectedBusUniqueNumber == null) {
       _showSnackBar("No bus selected!");
+      print("Error: No bus selected from dropdown."); // ADDED LOG
       return;
     }
     try {
+      print(
+          "Searching for bus with registration number: $_selectedBusUniqueNumber"); // ADDED LOG - VERY IMPORTANT
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('busData')
-          .where('busUniqueNumber', isEqualTo: _selectedBusUniqueNumber)
+          .where('busRegistrationNumber', isEqualTo: _selectedBusUniqueNumber)
           .get();
 
       if (querySnapshot.docs.isEmpty) {
         _showSnackBar("Bus document not found for: $_selectedBusUniqueNumber");
-        print("Bus document not found for: $_selectedBusUniqueNumber");
+        print(
+            "Error: Bus document not found for: $_selectedBusUniqueNumber in Firestore."); // ADDED LOG
         return;
       }
+
+      print(
+          "Bus document found. Document ID: ${querySnapshot.docs.first.id}"); // ADDED LOG
 
       String documentIdToUpdate = querySnapshot.docs.first.id;
 
@@ -330,11 +337,13 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       _showSnackBar(
           "Location and Speed updated for Bus: $_selectedBusUniqueNumber in Firestore!");
+      print(
+          "Success: Location and Speed updated for Bus: $_selectedBusUniqueNumber in Firestore!"); // ADDED LOG
     } catch (e) {
       _showSnackBar(
           "Error updating Firestore data for Bus: $_selectedBusUniqueNumber: $e");
       print(
-          "Error updating Firestore data for Bus: $_selectedBusUniqueNumber: $e");
+          "Error updating Firestore data for Bus: $_selectedBusUniqueNumber: $e"); // ORIGINAL LOG - KEEP
     }
   }
 

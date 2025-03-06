@@ -139,152 +139,168 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
+    // Calculate available height for the bus list
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double busListHeight =
+        screenHeight * 0.4; // Use 40% of screen height for bus list
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Focus(
-              onFocusChange: (hasFocus) {
-                setState(() {
-                  _isStartFocused = hasFocus;
-                  if (!hasFocus) {
-                    _suggestionsStart = [];
-                  }
-                });
-              },
-              child: AppTextField(
-                hintText: 'Starting Point',
-                isDispose: true,
-                controller: _startController,
-                onTextChanged: (text) {
-                  setState(() {
-                    _startingPoint = text;
-                  });
-                  _updateStartSuggestions(text);
-                },
-              ),
-            ),
-            if (_isStartFocused && _suggestionsStart.isNotEmpty)
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(5.0),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                margin: const EdgeInsets.only(top: 2.0),
-                padding: const EdgeInsets.symmetric(vertical: 5.0),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _suggestionsStart.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_suggestionsStart[index]),
-                      onTap: () {
-                        _selectSuggestion(_suggestionsStart[index], true);
-                      },
-                    );
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Scrollable section for the form fields
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Focus(
+                  onFocusChange: (hasFocus) {
+                    setState(() {
+                      _isStartFocused = hasFocus;
+                      if (!hasFocus) {
+                        _suggestionsStart = [];
+                      }
+                    });
                   },
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Center(
-                child: IconButtonWidget(
-                  iconData: Icons.swap_vert,
-                  onPressed: () {
-                    swapTextFields(
-                      currentStartingPoint: _startingPoint,
-                      currentDestination: _destination,
-                      startController: _startController,
-                      destController: _destController,
-                      setStateCallback: setState,
-                      updateStartingPoint: (value) => _startingPoint = value,
-                      updateDestination: (value) => _destination = value,
-                    );
-                  },
-                ),
-              ),
-            ),
-            Focus(
-              onFocusChange: (hasFocus) {
-                setState(() {
-                  _isDestFocused = hasFocus;
-                  if (!hasFocus) {
-                    _suggestionsDest = [];
-                  }
-                });
-              },
-              child: AppTextField(
-                hintText: 'Destination',
-                isDispose: true,
-                controller: _destController,
-                onTextChanged: (text) {
-                  setState(() {
-                    _destination = text;
-                  });
-                  _updateDestSuggestions(text);
-                },
-              ),
-            ),
-            if (_isDestFocused && _suggestionsDest.isNotEmpty)
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(5.0),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                margin: const EdgeInsets.only(top: 2.0, bottom: 10.0),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _suggestionsDest.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_suggestionsDest[index]),
-                      onTap: () {
-                        _selectSuggestion(_suggestionsDest[index], false);
-                      },
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 20.0),
-            SubmitButton(
-              onPressed: () {
-                FocusScope.of(context).unfocus(); // Hide keyboard on submit
-                if (_startingPoint.isEmpty || _destination.isEmpty) {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return CustomAlertDialog(
-                        title: 'Error',
-                        content:
-                            'Please enter both starting point and destination.',
-                      );
+                  child: AppTextField(
+                    hintText: 'Starting Point',
+                    isDispose: true,
+                    controller: _startController,
+                    onTextChanged: (text) {
+                      setState(() {
+                        _startingPoint = text;
+                      });
+                      _updateStartSuggestions(text);
                     },
-                  );
-                } else {
-                  _fetchBusDataFromFirestore(_startingPoint, _destination);
-                  print('Starting Point: $_startingPoint');
-                  print('Destination: $_destination');
-                }
-              },
-              child:
-                  _isLoading
-                      ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                      : const Text('Submit'),
+                  ),
+                ),
+                if (_isStartFocused && _suggestionsStart.isNotEmpty)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(5.0),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    margin: const EdgeInsets.only(top: 2.0),
+                    padding: const EdgeInsets.symmetric(vertical: 5.0),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _suggestionsStart.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: Text(_suggestionsStart[index]),
+                          onTap: () {
+                            _selectSuggestion(_suggestionsStart[index], true);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Center(
+                    child: IconButtonWidget(
+                      iconData: Icons.swap_vert,
+                      onPressed: () {
+                        swapTextFields(
+                          currentStartingPoint: _startingPoint,
+                          currentDestination: _destination,
+                          startController: _startController,
+                          destController: _destController,
+                          setStateCallback: setState,
+                          updateStartingPoint:
+                              (value) => _startingPoint = value,
+                          updateDestination: (value) => _destination = value,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                Focus(
+                  onFocusChange: (hasFocus) {
+                    setState(() {
+                      _isDestFocused = hasFocus;
+                      if (!hasFocus) {
+                        _suggestionsDest = [];
+                      }
+                    });
+                  },
+                  child: AppTextField(
+                    hintText: 'Destination',
+                    isDispose: true,
+                    controller: _destController,
+                    onTextChanged: (text) {
+                      setState(() {
+                        _destination = text;
+                      });
+                      _updateDestSuggestions(text);
+                    },
+                  ),
+                ),
+                if (_isDestFocused && _suggestionsDest.isNotEmpty)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(5.0),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    margin: const EdgeInsets.only(top: 2.0, bottom: 10.0),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _suggestionsDest.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: Text(_suggestionsDest[index]),
+                          onTap: () {
+                            _selectSuggestion(_suggestionsDest[index], false);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 10.0),
+                SubmitButton(
+                  onPressed: () {
+                    FocusScope.of(context).unfocus(); // Hide keyboard on submit
+                    if (_startingPoint.isEmpty || _destination.isEmpty) {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return CustomAlertDialog(
+                            title: 'Error',
+                            content:
+                                'Please enter both starting point and destination.',
+                          );
+                        },
+                      );
+                    } else {
+                      _fetchBusDataFromFirestore(_startingPoint, _destination);
+                      print('Starting Point: $_startingPoint');
+                      print('Destination: $_destination');
+                    }
+                  },
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text('Submit'),
+                ),
+                const SizedBox(height: 20.0),
+              ],
             ),
-            const SizedBox(height: 20.0),
-            BusListWidget(busList: _busList),
-          ],
-        ),
+          ),
+
+          // Bus List with fixed height - now takes remaining space
+          Expanded(child: BusListWidget(busList: _busList)),
+        ],
       ),
     );
   }

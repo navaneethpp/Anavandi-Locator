@@ -1,4 +1,4 @@
-0.2.1 alpha
+0.2.1 beta
 1 Connected the Anavandi Locator with FireBase.
 2 Added Real Time Location in app.
 3 Tested and corrected maximum errors in Map section
@@ -6,15 +6,8 @@
 5 Redesigned the floating action button in the map section
 6 Added location identification marks
 7 Updated the markers in the app
-8 Updated the OSM water mark
-9 Added the feature to ask if the user is traveling on the bus
-10 If the user answer is "Yes" then the stop fetching the user location
-11 If the user answer is "No" then the starts fetching the user location and updates every 1 minute.
-12 Added a smooth map traveling
-13 Added a feature for centering the bus on every movement. 
-14 Added the suggestion box in textField()
-15 Screen rotation is permanently disabled in the app
-16 Added an alert box to indicate that if the user accidentally searched for a location that is not in the database, such a location is in the database.
-17 Add compass in map widget
-18 Add the feature to update the current location of the bus dynamically
-19 Added the feature to predict the arriving time.
+8 Added a smooth map traveling
+9 Added a feature for centering the bus on every movement. 
+10 Added the suggestion box in textField()
+11 Added an alert box to indicate that if the user accidentally searched for a location that is not in the database, such a location is in the database.
+12 Add the feature to update the current location of the bus dynamically
