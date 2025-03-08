@@ -17,8 +17,8 @@ class MoreInfoScreen extends StatelessWidget {
     Map<String, dynamic> assignData =
         assignDataDocument.data()
             as Map<String, dynamic>; // Data from assignData
-    Map<String, dynamic> busData =
-        busDataDocument.data() as Map<String, dynamic>; // Data from busData
+    // Map<String, dynamic> busData =
+    //     busDataDocument.data() as Map<String, dynamic>; // Data from busData
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bus Route Details')),
