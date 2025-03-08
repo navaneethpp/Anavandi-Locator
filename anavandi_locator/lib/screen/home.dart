@@ -6,10 +6,9 @@ import 'package:anavandi_locator/functions/home_functions.dart';
 import 'package:anavandi_locator/widgets/icon_button_widget.dart';
 import 'package:anavandi_locator/widgets/submit_button.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/widgets/bus_list_widget.dart';
+import 'dart:math' as math;
 
 class Home extends StatefulWidget {
   final LatLng? userLocation;
@@ -54,6 +53,10 @@ class _HomeState extends State<Home> {
     _hideOverlayStart();
     _hideOverlayDest();
 
+    if (suggestions.isEmpty) {
+      return; // Don't show empty overlay
+    }
+
     OverlayEntry newOverlayEntry = OverlayEntry(
       builder: (context) {
         return Positioned(
@@ -71,13 +74,19 @@ class _HomeState extends State<Home> {
                 ),
                 margin: const EdgeInsets.only(top: 2.0),
                 padding: const EdgeInsets.symmetric(vertical: 5.0),
+                // Set a max height for the suggestions list
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.3,
+                ),
                 child: ListView.builder(
                   padding: EdgeInsets.zero,
                   shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                  // Allow scrolling if there are many suggestions
+                  physics: const ClampingScrollPhysics(),
                   itemCount: suggestions.length,
                   itemBuilder: (context, index) {
                     return ListTile(
+                      dense: true, // Make the list items more compact
                       title: Text(suggestions[index]),
                       onTap: () {
                         _selectSuggestion(suggestions[index], isStart);
@@ -142,48 +151,111 @@ class _HomeState extends State<Home> {
 
   Future<List<String>> _fetchPlaceSuggestions(String input) async {
     if (input.isEmpty) {
-      return [];
+      // If input is empty, show all places (limited to reasonable number)
+      return await _loadAllPlaces();
     }
-    final Uri url = Uri.parse(
-      'https://nominatim.openstreetmap.org/search?q=$input&countrycodes=in&format=json&limit=5',
-    );
-    print('Nominatim API URL: ${url.toString()}');
 
-    final response = await http.get(
-      url,
-      headers: {'User-Agent': 'AnavandiLocatorApp'},
-    );
+    try {
+      print('Fetching place suggestions for: "$input"');
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((item) => item['display_name'].toString()).toList();
-    } else {
-      print('Failed to fetch suggestions: ${response.statusCode}');
+      // Use array-contains or array-contains-any if you have keyword array fields
+      // Otherwise, try a simple text search
+      QuerySnapshot querySnapshot;
+
+      // First approach: Search for places where placeName contains the input
+      // Note: Firestore doesn't have native "contains" query, so we have to be creative
+      // We'll try to get places that start with the input and filter client-side
+      querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('placeData')
+              .orderBy('placeName')
+              .get();
+
+      // Client-side filtering to find places containing the input
+      List<String> filteredPlaces =
+          querySnapshot.docs
+              .map((doc) => doc['placeName'] as String)
+              .where(
+                (placeName) =>
+                    placeName.toLowerCase().contains(input.toLowerCase()),
+              )
+              .toList();
+
+      // Limit results to a reasonable number
+      if (filteredPlaces.length > 10) {
+        filteredPlaces = filteredPlaces.sublist(0, 10);
+      }
+
+      print('Found ${filteredPlaces.length} place suggestions for "$input"');
+      return filteredPlaces;
+    } catch (e) {
+      print('Error fetching place suggestions: $e');
       return [];
     }
   }
 
-  void _selectSuggestion(String suggestion, bool isStartTextField) {
-    setState(() {
-      String lowercaseSuggestion = suggestion.toLowerCase();
-      String truncatedSuggestion = lowercaseSuggestion;
+  Future<List<String>> _loadAllPlaces() async {
+    try {
+      print('Loading all places from Firestore');
+      QuerySnapshot querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('placeData')
+              .orderBy('placeName')
+              .limit(15) // Limit to a reasonable number
+              .get();
 
-      int commaIndex = lowercaseSuggestion.indexOf(',');
-      if (commaIndex != -1) {
-        truncatedSuggestion =
-            lowercaseSuggestion.substring(0, commaIndex).trim();
-      }
+      List<String> places =
+          querySnapshot.docs.map((doc) => doc['placeName'] as String).toList();
 
-      if (isStartTextField) {
-        _startingPoint = truncatedSuggestion;
-        _startController.text = suggestion;
-        _suggestionsStart = [];
+      print('Loaded ${places.length} places from Firestore');
+      return places;
+    } catch (e) {
+      print('Error loading all places: $e');
+      return [];
+    }
+  }
+
+  Future<void> _selectSuggestion(
+    String suggestion,
+    bool isStartTextField,
+  ) async {
+    try {
+      // Query Firestore to get the full place data
+      QuerySnapshot querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('placeData')
+              .where('placeName', isEqualTo: suggestion)
+              .limit(1)
+              .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        DocumentSnapshot placeDoc = querySnapshot.docs.first;
+        Map<String, dynamic> placeData =
+            placeDoc.data() as Map<String, dynamic>;
+
+        print('Selected place: $suggestion');
+        // You could print or use the coordinates here
+        print(
+          'Coordinates: ${placeData['latitude']}, ${placeData['longitude']}',
+        );
+
+        setState(() {
+          if (isStartTextField) {
+            _startingPoint = suggestion;
+            _startController.text = suggestion;
+            _suggestionsStart = [];
+          } else {
+            _destination = suggestion;
+            _destController.text = suggestion;
+            _suggestionsDest = [];
+          }
+        });
       } else {
-        _destination = truncatedSuggestion;
-        _destController.text = suggestion;
-        _suggestionsDest = [];
+        print('Place not found in Firestore: $suggestion');
       }
-    });
+    } catch (e) {
+      print('Error selecting suggestion: $e');
+    }
   }
 
   Future<void> _fetchBusDataFromFirestore(
@@ -198,28 +270,128 @@ class _HomeState extends State<Home> {
     print('Searching for buses from: "$startingPoint" to "$destination"');
 
     try {
+      // Trim the input strings to remove any leading/trailing whitespace
+      String trimmedStart = startingPoint.trim();
+      String trimmedDest = destination.trim();
+
+      // Debug the actual values we're searching for
+      print(
+        'Searching for buses with trimmed values - From: "$trimmedStart" To: "$trimmedDest"',
+      );
+
+      // First approach: Try with exact match
       QuerySnapshot querySnapshot =
           await FirebaseFirestore.instance
               .collection('assignData')
-              .where('startingPoint', isEqualTo: startingPoint)
-              .where('endingPoint', isEqualTo: destination)
+              .where('startingPoint', isEqualTo: trimmedStart)
+              .where('endingPoint', isEqualTo: trimmedDest)
               .get();
 
-      print('Number of documents found: ${querySnapshot.docs.length}');
+      print('Exact match search found: ${querySnapshot.docs.length} documents');
 
-      setState(() {
-        _busList = querySnapshot.docs;
-        _isLoading = false;
-      });
+      // If no results, try with case-insensitive approach
+      if (querySnapshot.docs.isEmpty) {
+        print('No exact matches found, trying case-insensitive search');
+
+        // Get all routes from Firestore
+        QuerySnapshot allRoutesSnapshot =
+            await FirebaseFirestore.instance.collection('assignData').get();
+
+        print(
+          'Retrieved ${allRoutesSnapshot.docs.length} total routes for filtering',
+        );
+
+        // Debugging: Print some of the routes to check their structure
+        if (allRoutesSnapshot.docs.isNotEmpty) {
+          for (int i = 0; i < math.min(3, allRoutesSnapshot.docs.length); i++) {
+            Map<String, dynamic> routeData =
+                allRoutesSnapshot.docs[i].data() as Map<String, dynamic>;
+            print(
+              'Sample route $i: ${routeData['startingPoint']} to ${routeData['endingPoint']}',
+            );
+          }
+        }
+
+        // Filter client-side for case-insensitive matching
+        List<DocumentSnapshot> filteredDocs =
+            allRoutesSnapshot.docs.where((doc) {
+              Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+              // Check if the document has the expected fields
+              if (!data.containsKey('startingPoint') ||
+                  !data.containsKey('endingPoint')) {
+                print('Document ${doc.id} is missing required fields');
+                return false;
+              }
+
+              String docStart = (data['startingPoint'] as String).toLowerCase();
+              String docEnd = (data['endingPoint'] as String).toLowerCase();
+
+              bool matches =
+                  docStart == trimmedStart.toLowerCase() &&
+                  docEnd == trimmedDest.toLowerCase();
+
+              if (matches) {
+                print(
+                  'Found case-insensitive match: ${data['startingPoint']} to ${data['endingPoint']}',
+                );
+              }
+
+              return matches;
+            }).toList();
+
+        print(
+          'Case-insensitive search found: ${filteredDocs.length} documents',
+        );
+
+        setState(() {
+          _busList = filteredDocs;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _busList = querySnapshot.docs;
+          _isLoading = false;
+        });
+      }
+
       if (_busList.isEmpty) {
-        print('No buses found for this route (after query).');
+        print('No buses found for this route (after both queries).');
+
+        // Additional debug: Fetch and print a few example routes for comparison
+        try {
+          QuerySnapshot exampleSnapshot =
+              await FirebaseFirestore.instance
+                  .collection('assignData')
+                  .limit(5)
+                  .get();
+
+          print('Here are some available routes in the database:');
+          for (var doc in exampleSnapshot.docs) {
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            print('Route: ${data['startingPoint']} to ${data['endingPoint']}');
+          }
+        } catch (e) {
+          print('Error fetching example routes: $e');
+        }
+
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return CustomAlertDialog(
+              title: 'No Buses Found',
+              content:
+                  'No buses found for route from "$trimmedStart" to "$trimmedDest".',
+            );
+          },
+        );
       } else {
         print('Found ${_busList.length} buses (after query).');
         if (_busList.isNotEmpty) {
           DocumentSnapshot firstBus = _busList.first;
           Map<String, dynamic> busData =
               firstBus.data() as Map<String, dynamic>;
-          print('Example bus data: ${busData}');
+          print('Example bus data: $busData');
         }
       }
     } catch (e) {
@@ -227,6 +399,15 @@ class _HomeState extends State<Home> {
       setState(() {
         _isLoading = false;
       });
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CustomAlertDialog(
+            title: 'Error',
+            content: 'Failed to fetch bus data: $e',
+          );
+        },
+      );
     }
   }
 
@@ -237,7 +418,6 @@ class _HomeState extends State<Home> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Removed Expanded Widget Here:
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -249,14 +429,15 @@ class _HomeState extends State<Home> {
                       setState(() {
                         _isStartFocused = hasFocus;
                         if (!hasFocus) {
-                          _suggestionsStart = [];
-                          _hideOverlayStart();
-                        } else if (_suggestionsStart.isNotEmpty) {
-                          _showOverlaySuggestions(
-                            _suggestionsStart,
-                            _layerLinkStart,
-                            true,
-                          );
+                          // Delay hiding to allow for tap
+                          Future.delayed(const Duration(milliseconds: 200), () {
+                            setState(() {
+                              _hideOverlayStart();
+                            });
+                          });
+                        } else {
+                          // Show suggestions immediately when field is focused
+                          _updateStartSuggestions(_startController.text);
                         }
                       });
                     },
@@ -300,14 +481,15 @@ class _HomeState extends State<Home> {
                       setState(() {
                         _isDestFocused = hasFocus;
                         if (!hasFocus) {
-                          _suggestionsDest = [];
-                          _hideOverlayDest();
-                        } else if (_suggestionsDest.isNotEmpty) {
-                          _showOverlaySuggestions(
-                            _suggestionsDest,
-                            _layerLinkDest,
-                            false,
-                          );
+                          // Delay hiding to allow for tap
+                          Future.delayed(const Duration(milliseconds: 200), () {
+                            setState(() {
+                              _hideOverlayDest();
+                            });
+                          });
+                        } else {
+                          // Show suggestions immediately when field is focused
+                          _updateDestSuggestions(_destController.text);
                         }
                       });
                     },
@@ -356,7 +538,6 @@ class _HomeState extends State<Home> {
                           )
                           : const Text('Submit'),
                 ),
-                // Removed SizedBox(height: 20.0) here
               ],
             ),
           ),

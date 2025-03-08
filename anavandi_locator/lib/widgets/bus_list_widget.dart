@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/functions/hexagon_painter.dart';
 import 'package:anavandi_locator/screen/bus_route_map_page.dart';
+import 'package:intl/intl.dart'; // Import intl package for title case
 
 class BusListWidget extends StatelessWidget {
   final List<DocumentSnapshot> busList;
@@ -35,6 +36,14 @@ class BusListWidget extends StatelessWidget {
       print('BusListWidget: Error fetching assignData document: $e');
       return null;
     }
+  }
+
+  // Helper function to title case a string
+  String _toTitleCase(String text) {
+    if (text == null || text.isEmpty) {
+      return 'N/A'; // Or handle null/empty as needed
+    }
+    return toBeginningOfSentenceCase(text) ?? text;
   }
 
   @override
@@ -113,7 +122,8 @@ class BusListWidget extends StatelessWidget {
                                   overflow: TextOverflow.visible,
                                 ),
                                 Text(
-                                  '${data['startingPoint'] ?? 'N/A'} - ${data['endingPoint'] ?? 'N/A'}',
+                                  // Apply title case here
+                                  '${_toTitleCase(data['startingPoint'])} - ${_toTitleCase(data['endingPoint'])}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16.0,
