@@ -42,7 +42,7 @@ class MoreInfoScreen extends StatelessWidget {
               assignData['startingTime'] ?? 'N/A',
             ),
             _buildDetailRow('Ending Time', assignData['endingTime'] ?? 'N/A'),
-            // Add more details here as needed from your assignData and busData fields
+            // Removed _buildDetailRow('Bus Model', busData['busModel'] ?? 'N/A'), // Bus Model Row - REMOVED
           ],
         ),
       ),
