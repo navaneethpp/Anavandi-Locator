@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/screen/more_info_screen.dart';
+import 'package:geolocator/geolocator.dart'; // Import geolocator package
 
 class BusRouteMapPage extends StatefulWidget {
   final String startingPointName;
@@ -34,6 +35,7 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
   LatLng? _endLocation;
   List<LatLng> _polylinePoints = [];
   LatLng? _busLocation;
+  LatLng? _userLocation; // User location fetched in this page
 
   // Add a map controller to programmatically control the map
   final MapController _mapController = MapController();
@@ -60,9 +62,74 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
     if (_startLocation != null && _endLocation != null) {
       await _fetchRoutePolyline();
     }
+    await _fetchUserLocation(); // Fetch user location here
     // Replace one-time fetch with stream subscription
     _setupBusLocationListener();
     print('BusRouteMapPage: _loadPageData finished');
+  }
+
+  // Fetch user's current location
+  Future<void> _fetchUserLocation() async {
+    print('BusRouteMapPage: _fetchUserLocation started');
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print('BusRouteMapPage: Location services are disabled.');
+      // Show a SnackBar to inform the user and offer to open settings
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Location services are disabled. Please enable them to show your location on the map.',
+            ),
+            duration: const Duration(seconds: 5), // Adjust duration as needed
+            action: SnackBarAction(
+              label: 'Enable Location',
+              onPressed: () async {
+                await Geolocator.openLocationSettings(); // Open device location settings
+              },
+            ),
+          ),
+        );
+      }
+      return; // Don't proceed fetching location if services are disabled
+    }
+
+    // Check location permissions (rest of the function remains the same)
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        print(
+          'BusRouteMapPage: Location permissions are denied. Cannot fetch user location.',
+        );
+        return; // Don't proceed if permissions are denied
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      print(
+        'BusRouteMapPage: Location permissions are permanently denied. Cannot fetch user location.',
+      );
+      return; // Don't proceed if permissions are permanently denied
+    }
+
+    // Get current location (rest of the function remains the same)
+    try {
+      Position position = await Geolocator.getCurrentPosition();
+      if (mounted) {
+        setState(() {
+          _userLocation = LatLng(position.latitude, position.longitude);
+        });
+        print('BusRouteMapPage: User location fetched: $_userLocation');
+      }
+    } catch (e) {
+      print('BusRouteMapPage: Error fetching user location: $e');
+    }
+    print('BusRouteMapPage: _fetchUserLocation finished');
   }
 
   // Setup real-time listener for bus location
@@ -360,7 +427,8 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
       body:
           (_startLocation == null ||
                   _endLocation == null ||
-                  _busLocation == null)
+                  _busLocation == null ||
+                  _userLocation == null) // Check if user location is also null
               ? const Center(child: CircularProgressIndicator())
               : Stack(
                 children: [
@@ -381,6 +449,15 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
                       ),
                       MarkerLayer(
                         markers: [
+                          if (_userLocation != null)
+                            Marker(
+                              point: _userLocation!,
+                              child: const Icon(
+                                Icons.person_pin_circle, // User location icon
+                                color: Color.fromARGB(255, 183, 0, 255),
+                                size: 35.0,
+                              ),
+                            ),
                           if (_startLocation != null)
                             Marker(
                               point: _startLocation!,
@@ -439,7 +516,7 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
                   ),
                   // Live tracking indicator
                   Positioned(
-                    top: 16, // Moved up to make room for the new button
+                    top: 16,
                     right: 16,
                     child: Container(
                       padding: const EdgeInsets.all(8),
