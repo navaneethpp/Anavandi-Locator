@@ -40,7 +40,7 @@ class BusListWidget extends StatelessWidget {
 
   // Helper function to title case a string
   String _toTitleCase(String text) {
-    if (text == null || text.isEmpty) {
+    if (text.isEmpty) {
       return 'N/A'; // Or handle null/empty as needed
     }
     return toBeginningOfSentenceCase(text) ?? text;
