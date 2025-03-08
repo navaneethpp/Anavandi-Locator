@@ -36,6 +36,7 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
   List<LatLng> _polylinePoints = [];
   LatLng? _busLocation;
   LatLng? _userLocation; // User location fetched in this page
+  bool _isInBus = false; // Track if the user is in the bus
 
   // Add a map controller to programmatically control the map
   final MapController _mapController = MapController();
@@ -46,7 +47,52 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
   @override
   void initState() {
     super.initState();
-    _loadPageData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _askIfUserIsInBus(); // Call _askIfUserIsInBus after first frame
+    });
+  }
+
+  Future<void> _askIfUserIsInBus() async {
+    print('BusRouteMapPage: _askIfUserIsInBus started');
+    bool? isInBusResult = await showDialog<bool>(
+      context: context,
+      builder:
+          (BuildContext context) => AlertDialog(
+            title: const Text('Are you in the bus?'),
+            content: const Text('Do you want to see your location on the map?'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(false); // No, fetch user location
+                },
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(
+                    context,
+                  ).pop(true); // Yes, don't fetch user location
+                },
+                child: const Text('Yes'),
+              ),
+            ],
+          ),
+    );
+
+    if (isInBusResult != null) {
+      setState(() {
+        _isInBus = isInBusResult;
+      });
+      _loadPageData();
+    } else {
+      // Handle the case where the dialog is dismissed without a selection (e.g., tapping outside)
+      // Default to fetching user location (No option) in this case, or handle as needed.
+      setState(() {
+        _isInBus = false; // Default to 'No' if no explicit choice
+      });
+      _loadPageData();
+    }
+    print('BusRouteMapPage: _askIfUserIsInBus finished - _isInBus: $_isInBus');
   }
 
   @override
@@ -58,18 +104,32 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
 
   Future<void> _loadPageData() async {
     print('BusRouteMapPage: _loadPageData started');
-    await _geocodeLocations();
-    if (_startLocation != null && _endLocation != null) {
-      await _fetchRoutePolyline();
+    try {
+      await _geocodeLocations();
+      if (_startLocation != null && _endLocation != null) {
+        await _fetchRoutePolyline();
+      }
+      if (!_isInBus) {
+        await _fetchUserLocation(); // Fetch user location only if not in bus
+      } else {
+        print('BusRouteMapPage: User is in bus, skipping user location fetch.');
+      }
+      // Replace one-time fetch with stream subscription
+      _setupBusLocationListener();
+    } catch (e) {
+      print(
+        'BusRouteMapPage: Error in _loadPageData: $e',
+      ); // Catch errors in loadPageData
     }
-    await _fetchUserLocation(); // Fetch user location here
-    // Replace one-time fetch with stream subscription
-    _setupBusLocationListener();
     print('BusRouteMapPage: _loadPageData finished');
   }
 
   // Fetch user's current location
   Future<void> _fetchUserLocation() async {
+    if (_isInBus) {
+      print('BusRouteMapPage: _fetchUserLocation skipped as user is in bus.');
+      return;
+    }
     print('BusRouteMapPage: _fetchUserLocation started');
     bool serviceEnabled;
     LocationPermission permission;
@@ -233,25 +293,32 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
       'BusRouteMapPage: _geocodeLocations - Starting Point Name: ${widget.startingPointName}, Ending Point Name: ${widget.endingPointName}',
     );
 
-    _startLocation = await _geocodePlaceNameToLatLng(
-      widget.startingPointName,
-      'start',
-    );
-    print(
-      'BusRouteMapPage: _geocodeLocations - _startLocation after geocoding: $_startLocation',
-    );
+    try {
+      _startLocation = await _geocodePlaceNameToLatLng(
+        widget.startingPointName,
+        'start',
+      );
+      print(
+        'BusRouteMapPage: _geocodeLocations - _startLocation after geocoding: $_startLocation',
+      );
 
-    _endLocation = await _geocodePlaceNameToLatLng(
-      widget.endingPointName,
-      'end',
-    );
-    print(
-      'BusRouteMapPage: _geocodeLocations - _endLocation after geocoding: $_endLocation',
-    );
+      _endLocation = await _geocodePlaceNameToLatLng(
+        widget.endingPointName,
+        'end',
+      );
+      print(
+        'BusRouteMapPage: _geocodeLocations - _endLocation after geocoding: $_endLocation',
+      );
 
-    if (_startLocation == null || _endLocation == null) {
-      print('BusRouteMapPage: Geocoding failed for start or end point.');
+      if (_startLocation == null || _endLocation == null) {
+        print('BusRouteMapPage: Geocoding failed for start or end point.');
+      }
+    } catch (e) {
+      print(
+        'BusRouteMapPage: Error in _geocodeLocations: $e',
+      ); // Catch geocode errors
     }
+
     print(
       'BusRouteMapPage: _geocodeLocations finished - startLocation: $_startLocation, endLocation: $_endLocation',
     );
@@ -428,7 +495,9 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
           (_startLocation == null ||
                   _endLocation == null ||
                   _busLocation == null ||
-                  _userLocation == null) // Check if user location is also null
+                  (!_isInBus &&
+                      _userLocation ==
+                          null)) // Conditionally check user location
               ? const Center(child: CircularProgressIndicator())
               : Stack(
                 children: [
@@ -449,7 +518,9 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
                       ),
                       MarkerLayer(
                         markers: [
-                          if (_userLocation != null)
+                          if (!_isInBus &&
+                              _userLocation !=
+                                  null) // Conditionally show user marker
                             Marker(
                               point: _userLocation!,
                               child: const Icon(
