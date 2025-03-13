@@ -12,9 +12,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  final PageController _pageController = PageController(
-    initialPage: 0,
-  ); // Changed initialPage to 0
+  final PageController _pageController = PageController(initialPage: 0);
 
   @override
   void initState() {
@@ -40,21 +38,43 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
+  bool _shouldShowBackground() {
+    // Exclude background on "Home" (index 0) and "About" (index 1) pages
+    return true; //!(_selectedIndex == 0 || _selectedIndex == 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(Names.appName)),
-      body: PageView(
-        controller: _pageController,
-        children: _widgetOptions,
-        onPageChanged: (index) {
-          // Added onPageChanged callback
-          setState(() {
-            _selectedIndex = index; // Update _selectedIndex when page changes
-          });
-        },
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text(Names.appName),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          if (_shouldShowBackground())
+            Positioned.fill(
+              child: Image.asset('assets/bg.png', fit: BoxFit.cover),
+            ),
+          SafeArea(
+            child: PageView(
+              controller: _pageController,
+              children: _widgetOptions,
+              onPageChanged: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor:
+            Colors.transparent, // Make bottom navigation bar transparent
+        elevation: 0, // Remove bottom navigation bar shadow
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.info), label: 'About'),
