@@ -270,95 +270,64 @@ class _HomeState extends State<Home> {
     print('Searching for buses from: "$startingPoint" to "$destination"');
 
     try {
-      // Trim the input strings to remove any leading/trailing whitespace
-      String trimmedStart = startingPoint.trim();
-      String trimmedDest = destination.trim();
+      String trimmedStart = startingPoint.trim().toLowerCase();
+      String trimmedDest = destination.trim().toLowerCase();
 
-      // Debug the actual values we're searching for
       print(
-        'Searching for buses with trimmed values - From: "$trimmedStart" To: "$trimmedDest"',
+        'Searching for buses with trimmed and lowercased values - From: "$trimmedStart" To: "$trimmedDest"',
       );
 
-      // First approach: Try with exact match
-      QuerySnapshot querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('assignData')
-              .where('startingPoint', isEqualTo: trimmedStart)
-              .where('endingPoint', isEqualTo: trimmedDest)
-              .get();
+      QuerySnapshot allRoutesSnapshot =
+          await FirebaseFirestore.instance.collection('assignData').get();
 
-      print('Exact match search found: ${querySnapshot.docs.length} documents');
+      print(
+        'Retrieved ${allRoutesSnapshot.docs.length} total routes for filtering',
+      );
 
-      // If no results, try with case-insensitive approach
-      if (querySnapshot.docs.isEmpty) {
-        print('No exact matches found, trying case-insensitive search');
+      List<DocumentSnapshot> filteredDocs =
+          allRoutesSnapshot.docs.where((doc) {
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-        // Get all routes from Firestore
-        QuerySnapshot allRoutesSnapshot =
-            await FirebaseFirestore.instance.collection('assignData').get();
+            if (!data.containsKey('startingPoint') ||
+                !data.containsKey('endingPoint')) {
+              print('Document ${doc.id} is missing required fields');
+              return false;
+            }
 
-        print(
-          'Retrieved ${allRoutesSnapshot.docs.length} total routes for filtering',
-        );
+            String docStart =
+                (data['startingPoint'] as String).trim().toLowerCase();
+            String docEnd =
+                (data['endingPoint'] as String).trim().toLowerCase();
 
-        // Debugging: Print some of the routes to check their structure
-        if (allRoutesSnapshot.docs.isNotEmpty) {
-          for (int i = 0; i < math.min(3, allRoutesSnapshot.docs.length); i++) {
-            Map<String, dynamic> routeData =
-                allRoutesSnapshot.docs[i].data() as Map<String, dynamic>;
-            print(
-              'Sample route $i: ${routeData['startingPoint']} to ${routeData['endingPoint']}',
-            );
-          }
-        }
+            print('Comparing:');
+            print('User Start: "$trimmedStart"');
+            print('DB Start:   "$docStart"');
+            print('User End:   "$trimmedDest"');
+            print('DB End:     "$docEnd"');
 
-        // Filter client-side for case-insensitive matching
-        List<DocumentSnapshot> filteredDocs =
-            allRoutesSnapshot.docs.where((doc) {
-              Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            bool matches = docStart == trimmedStart && docEnd == trimmedDest;
 
-              // Check if the document has the expected fields
-              if (!data.containsKey('startingPoint') ||
-                  !data.containsKey('endingPoint')) {
-                print('Document ${doc.id} is missing required fields');
-                return false;
-              }
+            if (matches) {
+              print(
+                'Found match (case-insensitive and trimmed): ${data['startingPoint']} to ${data['endingPoint']}',
+              );
+            }
 
-              String docStart = (data['startingPoint'] as String).toLowerCase();
-              String docEnd = (data['endingPoint'] as String).toLowerCase();
+            return matches;
+          }).toList();
 
-              bool matches =
-                  docStart == trimmedStart.toLowerCase() &&
-                  docEnd == trimmedDest.toLowerCase();
+      print(
+        'Case-insensitive and trimmed search found: ${filteredDocs.length} documents',
+      );
 
-              if (matches) {
-                print(
-                  'Found case-insensitive match: ${data['startingPoint']} to ${data['endingPoint']}',
-                );
-              }
-
-              return matches;
-            }).toList();
-
-        print(
-          'Case-insensitive search found: ${filteredDocs.length} documents',
-        );
-
-        setState(() {
-          _busList = filteredDocs;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _busList = querySnapshot.docs;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _busList = filteredDocs;
+        _isLoading = false;
+      });
 
       if (_busList.isEmpty) {
-        print('No buses found for this route (after both queries).');
+        print('No buses found for this route (after filtering).');
 
-        // Additional debug: Fetch and print a few example routes for comparison
         try {
           QuerySnapshot exampleSnapshot =
               await FirebaseFirestore.instance
