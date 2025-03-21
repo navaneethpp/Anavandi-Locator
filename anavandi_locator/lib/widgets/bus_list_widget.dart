@@ -10,30 +10,27 @@ class BusListWidget extends StatelessWidget {
 
   const BusListWidget({super.key, required this.busList});
 
-  Future<DocumentSnapshot?> _fetchAssignDataDocument(
+  Future<DocumentSnapshot?> _fetchBusDataDocument(
     String busRegistrationNumber,
   ) async {
     try {
-      QuerySnapshot assignDataQuery =
+      QuerySnapshot busDataQuery =
           await FirebaseFirestore.instance
-              .collection('assignData')
-              .where(
-                'busRegistrationNumber',
-                isEqualTo: busRegistrationNumber,
-              ) // Assuming 'busRegistrationNumber' links assignData and busData
+              .collection('busData')
+              .where('busRegistrationNumber', isEqualTo: busRegistrationNumber)
               .limit(1)
               .get();
 
-      if (assignDataQuery.docs.isNotEmpty) {
-        return assignDataQuery.docs.first;
+      if (busDataQuery.docs.isNotEmpty) {
+        return busDataQuery.docs.first;
       } else {
         print(
-          'BusListWidget: No assignData document found for busRegistrationNumber: $busRegistrationNumber',
+          'BusListWidget: No busData document found for busRegistrationNumber: $busRegistrationNumber',
         );
         return null;
       }
     } catch (e) {
-      print('BusListWidget: Error fetching assignData document: $e');
+      print('BusListWidget: Error fetching busData document: $e');
       return null;
     }
   }
@@ -54,37 +51,39 @@ class BusListWidget extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           itemCount: busList.length,
           itemBuilder: (context, index) {
-            DocumentSnapshot busData =
-                busList[index]; // busData document from busList
-            Map<String, dynamic> data = busData.data() as Map<String, dynamic>;
+            DocumentSnapshot assignDataDocument =
+                busList[index]; // This is an assignData document
+            Map<String, dynamic> assignData =
+                assignDataDocument.data() as Map<String, dynamic>;
             return InkWell(
               onTap: () async {
                 // Make onTap async
-                DocumentSnapshot? assignDataDocument =
-                    await _fetchAssignDataDocument(
-                      data['busRegistrationNumber'],
-                    ); // Fetch assignData
+                final String busRegistrationNumber =
+                    assignData['busRegistrationNumber'];
+                DocumentSnapshot? busDataDocument = await _fetchBusDataDocument(
+                  busRegistrationNumber,
+                ); // Fetch the actual busData document
 
-                if (assignDataDocument != null) {
+                if (busDataDocument != null) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder:
                           (context) => BusRouteMapPage(
-                            startingPointName: data['startingPoint'] ?? 'N/A',
-                            endingPointName: data['endingPoint'] ?? 'N/A',
-                            busRegistrationNumber:
-                                data['busRegistrationNumber'] ?? 'N/A',
-                            assignDataDocument:
-                                assignDataDocument, // Pass assignDataDocument - **EDITED: ADDED**
-                            busDataDocument: busData, // Pass busData document
+                            startingPointName:
+                                assignData['startingPoint'] ?? 'N/A',
+                            endingPointName: assignData['endingPoint'] ?? 'N/A',
+                            busRegistrationNumber: busRegistrationNumber,
+                            assignDataDocument: assignDataDocument,
+                            busDataDocument:
+                                busDataDocument, // Pass the fetched busData document
                           ),
                     ),
                   );
                 } else {
-                  // Handle case where assignDataDocument is not found (optional - maybe show an error message)
+                  // Handle case where busDataDocument is not found
                   print(
-                    'BusListWidget: assignDataDocument not found, cannot navigate to BusRouteMapPage',
+                    'BusListWidget: busDataDocument not found for registration: $busRegistrationNumber',
                   );
                   // You might want to show a snackbar or dialog to inform the user
                 }
@@ -123,7 +122,7 @@ class BusListWidget extends StatelessWidget {
                                 ),
                                 Text(
                                   // Apply title case here
-                                  '${_toTitleCase(data['startingPoint'])} - ${_toTitleCase(data['endingPoint'])}',
+                                  '${_toTitleCase(assignData['startingPoint'])} - ${_toTitleCase(assignData['endingPoint'])}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16.0,
@@ -141,7 +140,7 @@ class BusListWidget extends StatelessWidget {
                               children: [
                                 CustomPaint(
                                   painter: HexagonPainter(
-                                    text: data['busType'] ?? 'N/A',
+                                    text: assignData['busType'] ?? 'N/A',
                                   ),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -149,7 +148,7 @@ class BusListWidget extends StatelessWidget {
                                       vertical: 6.0,
                                     ),
                                     child: Text(
-                                      data['busType'] ?? 'N/A',
+                                      assignData['busType'] ?? 'N/A',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -180,7 +179,7 @@ class BusListWidget extends StatelessWidget {
                                   overflow: TextOverflow.visible,
                                 ),
                                 Text(
-                                  data['busRegistrationNumber'] ?? 'N/A',
+                                  assignData['busRegistrationNumber'] ?? 'N/A',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14.0,
@@ -216,7 +215,7 @@ class BusListWidget extends StatelessWidget {
                                   overflow: TextOverflow.visible,
                                 ),
                                 Text(
-                                  data['depoName'] ?? 'N/A',
+                                  assignData['depoName'] ?? 'N/A',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 14.0,
@@ -243,7 +242,7 @@ class BusListWidget extends StatelessWidget {
                                   overflow: TextOverflow.visible,
                                 ),
                                 Text(
-                                  '${data['startingTime'] ?? 'N/A'} - ${data['endingTime'] ?? 'N/A'}',
+                                  '${assignData['startingTime'] ?? 'N/A'} - ${assignData['endingTime'] ?? 'N/A'}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 14.0,

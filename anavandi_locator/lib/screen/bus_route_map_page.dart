@@ -614,9 +614,31 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
                   ),
                   // Add the center on bus button
                   Positioned(
-                    bottom: 16,
-                    right: 16,
+                    bottom: 68,
+                    right: 20,
                     child: CenterOnBusButton(onPressed: _centerOnBus),
+                  ),
+                  // White bar at the bottom
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      height: 50.0, // Adjust height as needed
+                      color: Colors.black,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Bus Speed: ${widget.busDataDocument['speed'] ?? 'N/A'} km/h',
+                              style: TextStyle(fontSize: 20),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
