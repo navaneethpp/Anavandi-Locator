@@ -33,10 +33,13 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  MyHomePageState createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+abstract class MyHomePageStateInterface {}
+
+class MyHomePageState extends State<MyHomePage>
+    implements MyHomePageStateInterface {
   String _buttonText = "START";
   double _latitude = 0.0;
   double _longitude = 0.0;
@@ -45,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _locationInitialized = false;
   Timer? _locationUpdateTimer;
   bool _isUpdatingLocation = false;
-  double _lastUpdateTime = 0;
+  // double _lastUpdateTime = 0; // Removed unused variable
   double _speed = 0.0;
   List<String> _busList = [];
   String? _selectedBusUniqueNumber;
@@ -71,7 +74,6 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     } catch (e) {
       _showSnackBar("Error fetching bus list: $e");
-      print("Error fetching bus list: $e");
     }
   }
 
@@ -264,8 +266,7 @@ class _MyHomePageState extends State<MyHomePage> {
         locationSettings: locationSettings,
       );
 
-      double currentTime = DateTime.now().millisecondsSinceEpoch / 1000;
-      double timeDifference = currentTime - _lastUpdateTime;
+      // double currentTime = DateTime.now().millisecondsSinceEpoch / 1000; // Removed unused variable
 
       double distanceThreshold = 0.1;
 
@@ -287,7 +288,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _previousLatitude = position.latitude;
         _previousLongitude = position.longitude;
         _locationInitialized = true;
-        _lastUpdateTime = currentTime;
+        // _lastUpdateTime = currentTime; // Removed previously
       }
 
       return position;
@@ -301,12 +302,9 @@ class _MyHomePageState extends State<MyHomePage> {
       double lat, double lon, double speed) async {
     if (_selectedBusUniqueNumber == null) {
       _showSnackBar("No bus selected!");
-      print("Error: No bus selected from dropdown."); // ADDED LOG
       return;
     }
     try {
-      print(
-          "Searching for bus with registration number: $_selectedBusUniqueNumber"); // ADDED LOG - VERY IMPORTANT
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('busData')
           .where('busRegistrationNumber', isEqualTo: _selectedBusUniqueNumber)
@@ -314,13 +312,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if (querySnapshot.docs.isEmpty) {
         _showSnackBar("Bus document not found for: $_selectedBusUniqueNumber");
-        print(
-            "Error: Bus document not found for: $_selectedBusUniqueNumber in Firestore."); // ADDED LOG
         return;
       }
-
-      print(
-          "Bus document found. Document ID: ${querySnapshot.docs.first.id}"); // ADDED LOG
 
       String documentIdToUpdate = querySnapshot.docs.first.id;
 
@@ -337,13 +330,9 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       _showSnackBar(
           "Location and Speed updated for Bus: $_selectedBusUniqueNumber in Firestore!");
-      print(
-          "Success: Location and Speed updated for Bus: $_selectedBusUniqueNumber in Firestore!"); // ADDED LOG
     } catch (e) {
       _showSnackBar(
           "Error updating Firestore data for Bus: $_selectedBusUniqueNumber: $e");
-      print(
-          "Error updating Firestore data for Bus: $_selectedBusUniqueNumber: $e"); // ORIGINAL LOG - KEEP
     }
   }
 

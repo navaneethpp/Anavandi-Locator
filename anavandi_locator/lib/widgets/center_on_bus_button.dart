@@ -10,8 +10,8 @@ class CenterOnBusButton extends StatelessWidget {
     return FloatingActionButton(
       onPressed: onPressed,
       backgroundColor: Colors.blue,
-      child: const Icon(Icons.location_searching),
       tooltip: "Center the bus",
+      child: const Icon(Icons.location_searching),
     );
   }
 }

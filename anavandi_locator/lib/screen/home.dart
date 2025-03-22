@@ -8,7 +8,6 @@ import 'package:anavandi_locator/widgets/submit_button.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/widgets/bus_list_widget.dart';
-import 'dart:math' as math;
 
 class Home extends StatefulWidget {
   final LatLng? userLocation;
@@ -156,8 +155,6 @@ class _HomeState extends State<Home> {
     }
 
     try {
-      print('Fetching place suggestions for: "$input"');
-
       // Use array-contains or array-contains-any if you have keyword array fields
       // Otherwise, try a simple text search
       QuerySnapshot querySnapshot;
@@ -185,18 +182,14 @@ class _HomeState extends State<Home> {
       if (filteredPlaces.length > 10) {
         filteredPlaces = filteredPlaces.sublist(0, 10);
       }
-
-      print('Found ${filteredPlaces.length} place suggestions for "$input"');
       return filteredPlaces;
     } catch (e) {
-      print('Error fetching place suggestions: $e');
       return [];
     }
   }
 
   Future<List<String>> _loadAllPlaces() async {
     try {
-      print('Loading all places from Firestore');
       QuerySnapshot querySnapshot =
           await FirebaseFirestore.instance
               .collection('placeData')
@@ -206,11 +199,8 @@ class _HomeState extends State<Home> {
 
       List<String> places =
           querySnapshot.docs.map((doc) => doc['placeName'] as String).toList();
-
-      print('Loaded ${places.length} places from Firestore');
       return places;
     } catch (e) {
-      print('Error loading all places: $e');
       return [];
     }
   }
@@ -233,11 +223,7 @@ class _HomeState extends State<Home> {
         Map<String, dynamic> placeData =
             placeDoc.data() as Map<String, dynamic>;
 
-        print('Selected place: $suggestion');
         // You could print or use the coordinates here
-        print(
-          'Coordinates: ${placeData['latitude']}, ${placeData['longitude']}',
-        );
 
         setState(() {
           if (isStartTextField) {
@@ -251,10 +237,10 @@ class _HomeState extends State<Home> {
           }
         });
       } else {
-        print('Place not found in Firestore: $suggestion');
+        // print('Place not found in Firestore: $suggestion');
       }
     } catch (e) {
-      print('Error selecting suggestion: $e');
+      // print('Error selecting suggestion: $e');
     }
   }
 
@@ -267,22 +253,12 @@ class _HomeState extends State<Home> {
       _isLoading = true;
     });
 
-    print('Searching for buses from: "$startingPoint" to "$destination"');
-
     try {
       String trimmedStart = startingPoint.trim().toLowerCase();
       String trimmedDest = destination.trim().toLowerCase();
 
-      print(
-        'Searching for buses with trimmed and lowercased values - From: "$trimmedStart" To: "$trimmedDest"',
-      );
-
       QuerySnapshot allRoutesSnapshot =
           await FirebaseFirestore.instance.collection('assignData').get();
-
-      print(
-        'Retrieved ${allRoutesSnapshot.docs.length} total routes for filtering',
-      );
 
       List<DocumentSnapshot> filteredDocs =
           allRoutesSnapshot.docs.where((doc) {
@@ -290,7 +266,6 @@ class _HomeState extends State<Home> {
 
             if (!data.containsKey('startingPoint') ||
                 !data.containsKey('endingPoint')) {
-              print('Document ${doc.id} is missing required fields');
               return false;
             }
 
@@ -299,26 +274,16 @@ class _HomeState extends State<Home> {
             String docEnd =
                 (data['endingPoint'] as String).trim().toLowerCase();
 
-            print('Comparing:');
-            print('User Start: "$trimmedStart"');
-            print('DB Start:   "$docStart"');
-            print('User End:   "$trimmedDest"');
-            print('DB End:     "$docEnd"');
-
             bool matches = docStart == trimmedStart && docEnd == trimmedDest;
 
             if (matches) {
-              print(
-                'Found match (case-insensitive and trimmed): ${data['startingPoint']} to ${data['endingPoint']}',
-              );
+              // print(
+              //   'Found match (case-insensitive and trimmed): ${data['startingPoint']} to ${data['endingPoint']}',
+              // );
             }
 
             return matches;
           }).toList();
-
-      print(
-        'Case-insensitive and trimmed search found: ${filteredDocs.length} documents',
-      );
 
       setState(() {
         _busList = filteredDocs;
@@ -326,8 +291,6 @@ class _HomeState extends State<Home> {
       });
 
       if (_busList.isEmpty) {
-        print('No buses found for this route (after filtering).');
-
         try {
           QuerySnapshot exampleSnapshot =
               await FirebaseFirestore.instance
@@ -335,13 +298,11 @@ class _HomeState extends State<Home> {
                   .limit(5)
                   .get();
 
-          print('Here are some available routes in the database:');
           for (var doc in exampleSnapshot.docs) {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            print('Route: ${data['startingPoint']} to ${data['endingPoint']}');
           }
         } catch (e) {
-          print('Error fetching example routes: $e');
+          // print('Error fetching example routes: $e');
         }
 
         showDialog(
@@ -355,16 +316,13 @@ class _HomeState extends State<Home> {
           },
         );
       } else {
-        print('Found ${_busList.length} buses (after query).');
         if (_busList.isNotEmpty) {
           DocumentSnapshot firstBus = _busList.first;
           Map<String, dynamic> busData =
               firstBus.data() as Map<String, dynamic>;
-          print('Example bus data: $busData');
         }
       }
     } catch (e) {
-      print('Error fetching bus data: $e');
       setState(() {
         _isLoading = false;
       });

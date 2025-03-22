@@ -24,13 +24,9 @@ class BusListWidget extends StatelessWidget {
       if (busDataQuery.docs.isNotEmpty) {
         return busDataQuery.docs.first;
       } else {
-        print(
-          'BusListWidget: No busData document found for busRegistrationNumber: $busRegistrationNumber',
-        );
         return null;
       }
     } catch (e) {
-      print('BusListWidget: Error fetching busData document: $e');
       return null;
     }
   }
@@ -82,9 +78,9 @@ class BusListWidget extends StatelessWidget {
                   );
                 } else {
                   // Handle case where busDataDocument is not found
-                  print(
-                    'BusListWidget: busDataDocument not found for registration: $busRegistrationNumber',
-                  );
+                  // print(
+                  //   'BusListWidget: busDataDocument not found for registration: $busRegistrationNumber',
+                  // );
                   // You might want to show a snackbar or dialog to inform the user
                 }
               },

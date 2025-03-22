@@ -56,7 +56,6 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
   }
 
   Future<void> _askIfUserIsInBus() async {
-    print('BusRouteMapPage: _askIfUserIsInBus started');
     bool? isInBusResult = await showDialog<bool>(
       context: context,
       builder:
@@ -95,7 +94,6 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
       });
       _loadPageData();
     }
-    print('BusRouteMapPage: _askIfUserIsInBus finished - _isInBus: $_isInBus');
   }
 
   @override
@@ -106,7 +104,6 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
   }
 
   Future<void> _loadPageData() async {
-    print('BusRouteMapPage: _loadPageData started');
     try {
       await _geocodeLocations();
       if (_startLocation != null && _endLocation != null) {
@@ -114,33 +111,27 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
       }
       if (!_isInBus) {
         await _fetchUserLocation(); // Fetch user location only if not in bus
-      } else {
-        print('BusRouteMapPage: User is in bus, skipping user location fetch.');
-      }
+      } else {}
       // Replace one-time fetch with stream subscription
       _setupBusLocationListener();
     } catch (e) {
-      print(
-        'BusRouteMapPage: Error in _loadPageData: $e',
-      ); // Catch errors in loadPageData
+      // print(
+      //   'BusRouteMapPage: Error in _loadPageData: $e',
+      // ); // Catch errors in loadPageData
     }
-    print('BusRouteMapPage: _loadPageData finished');
   }
 
   // Fetch user's current location
   Future<void> _fetchUserLocation() async {
     if (_isInBus) {
-      print('BusRouteMapPage: _fetchUserLocation skipped as user is in bus.');
       return;
     }
-    print('BusRouteMapPage: _fetchUserLocation started');
     bool serviceEnabled;
     LocationPermission permission;
 
     // Check if location services are enabled
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      print('BusRouteMapPage: Location services are disabled.');
       // Show a SnackBar to inform the user and offer to open settings
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -166,17 +157,11 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        print(
-          'BusRouteMapPage: Location permissions are denied. Cannot fetch user location.',
-        );
         return; // Don't proceed if permissions are denied
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      print(
-        'BusRouteMapPage: Location permissions are permanently denied. Cannot fetch user location.',
-      );
       return; // Don't proceed if permissions are permanently denied
     }
 
@@ -187,17 +172,14 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
         setState(() {
           _userLocation = LatLng(position.latitude, position.longitude);
         });
-        print('BusRouteMapPage: User location fetched: $_userLocation');
       }
     } catch (e) {
-      print('BusRouteMapPage: Error fetching user location: $e');
+      // print('BusRouteMapPage: Error fetching user location: $e');
     }
-    print('BusRouteMapPage: _fetchUserLocation finished');
   }
 
   // Setup real-time listener for bus location
   void _setupBusLocationListener() {
-    print('BusRouteMapPage: Setting up real-time bus location listener');
     try {
       final Stream<QuerySnapshot> busDataStream =
           FirebaseFirestore.instance
@@ -211,7 +193,6 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
 
       _busLocationSubscription = busDataStream.listen(
         (QuerySnapshot snapshot) {
-          print('BusRouteMapPage: Received bus location update from Firestore');
           if (snapshot.docs.isNotEmpty) {
             DocumentSnapshot busDataDoc = snapshot.docs.first;
             Map<String, dynamic> busLocationData =
@@ -227,7 +208,6 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
                   setState(() {
                     _busLocation = LatLng(lat, lon);
                   });
-                  print('BusRouteMapPage: Bus location updated: $_busLocation');
                   calculateETA(
                     busLocation: _busLocation,
                     userLocation: _userLocation,
@@ -244,21 +224,21 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
                     vsync: this, // Pass the TickerProvider
                     openRouteSerivceAPI: openRouteSerivceAPI,
                   );
-                  ; // Calculate ETA whenever bus location updates
+                  // Calculate ETA whenever bus location updates
                 }
                 return;
               } else {
-                print(
-                  'BusRouteMapPage: Parsing error for bus location - lat: $lat, lon: $lon',
-                );
+                // print(
+                //   'BusRouteMapPage: Parsing error for bus location - lat: $lat, lon: $lon',
+                // );
               }
             } else {
-              print(
-                'BusRouteMapPage: Invalid location format for bus ${widget.busRegistrationNumber}: $locationArray',
-              );
+              // print(
+              //   'BusRouteMapPage: Invalid location format for bus ${widget.busRegistrationNumber}: $locationArray',
+              // );
             }
           } else {
-            print('BusRouteMapPage: No bus data found in latest snapshot');
+            // print('BusRouteMapPage: No bus data found in latest snapshot');
           }
 
           if (mounted) {
@@ -268,7 +248,6 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
           }
         },
         onError: (error) {
-          print('BusRouteMapPage: Error in bus location listener: $error');
           if (mounted) {
             setState(() {
               // Keep previous location on error
@@ -277,14 +256,13 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
         },
       );
     } catch (e) {
-      print('BusRouteMapPage: Error setting up bus location listener: $e');
+      // print('BusRouteMapPage: Error setting up bus location listener: $e');
     }
   }
 
   // Add this method to center the map on the bus location
   void _centerOnBus() {
     if (_busLocation != null) {
-      print('BusRouteMapPage: Centering map on bus location: $_busLocation');
       _mapController.move(
         _busLocation!,
         15.0,
@@ -309,59 +287,35 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
   }
 
   Future<void> _geocodeLocations() async {
-    print(
-      'BusRouteMapPage: _geocodeLocations - Starting Point Name: ${widget.startingPointName}, Ending Point Name: ${widget.endingPointName}',
-    );
-
     try {
       _startLocation = await _geocodePlaceNameToLatLng(
         widget.startingPointName,
         'start',
-      );
-      print(
-        'BusRouteMapPage: _geocodeLocations - _startLocation after geocoding: $_startLocation',
       );
 
       _endLocation = await _geocodePlaceNameToLatLng(
         widget.endingPointName,
         'end',
       );
-      print(
-        'BusRouteMapPage: _geocodeLocations - _endLocation after geocoding: $_endLocation',
-      );
-
       if (_startLocation == null || _endLocation == null) {
-        print('BusRouteMapPage: Geocoding failed for start or end point.');
+        // print('BusRouteMapPage: Geocoding failed for start or end point.');
       }
     } catch (e) {
-      print(
-        'BusRouteMapPage: Error in _geocodeLocations: $e',
-      ); // Catch geocode errors
+      // print(
+      //   'BusRouteMapPage: Error in _geocodeLocations: $e',
+      // ); // Catch geocode errors
     }
-
-    print(
-      'BusRouteMapPage: _geocodeLocations finished - startLocation: $_startLocation, endLocation: $_endLocation',
-    );
   }
 
   Future<LatLng?> _geocodePlaceNameToLatLng(
     String placeName,
     String pointType,
   ) async {
-    print(
-      'BusRouteMapPage: _geocodePlaceNameToLatLng started for $pointType: $placeName',
-    );
     if (placeName.isEmpty) {
-      print(
-        'BusRouteMapPage: _geocodePlaceNameToLatLng - Place name is empty for $pointType',
-      );
       return null;
     }
     final Uri url = Uri.parse(
       'https://nominatim.openstreetmap.org/search?q=$placeName&countrycodes=in&format=json&limit=1',
-    );
-    print(
-      'BusRouteMapPage: Nominatim API URL for geocoding ($pointType): ${url.toString()}',
     );
 
     try {
@@ -371,49 +325,36 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
       );
 
       if (response.statusCode == 200) {
-        print(
-          'BusRouteMapPage: Nominatim API response for $pointType - Status Code: ${response.statusCode}',
-        );
         final List<dynamic> data = jsonDecode(response.body);
         if (data.isNotEmpty && data[0] != null) {
           final item = data[0];
           final lat = double.tryParse(item['lat'].toString());
           final lon = double.tryParse(item['lon'].toString());
           if (lat != null && lon != null) {
-            print(
-              'BusRouteMapPage: Geocoding successful for $pointType - Lat: $lat, Lon: $lon',
-            );
             return LatLng(lat, lon);
           } else {
-            print(
-              'BusRouteMapPage: _geocodePlaceNameToLatLng - Parsing error for $pointType - lat: $lat, lon: $lon',
-            );
+            // print(
+            //   'BusRouteMapPage: _geocodePlaceNameToLatLng - Parsing error for $pointType - lat: $lat, lon: $lon',
+            // );
           }
         } else {
-          print(
-            'BusRouteMapPage: _geocodePlaceNameToLatLng - No results found for $pointType',
-          );
+          // print(
+          //   'BusRouteMapPage: _geocodePlaceNameToLatLng - No results found for $pointType',
+          // );
         }
       } else {
-        print(
-          'BusRouteMapPage: Nominatim API request failed for $pointType: ${response.statusCode}',
-        );
+        // print(
+        //   'BusRouteMapPage: Nominatim API request failed for $pointType: ${response.statusCode}',
+        // );
       }
     } catch (e) {
-      print('BusRouteMapPage: Error during geocoding for $pointType: $e');
+      // print('BusRouteMapPage: Error during geocoding for $pointType: $e');
     }
-    print(
-      'BusRouteMapPage: _geocodePlaceNameToLatLng returning null for $pointType',
-    );
     return null;
   }
 
   Future<void> _fetchRoutePolyline() async {
-    print('BusRouteMapPage: _fetchRoutePolyline started');
     if (_startLocation == null || _endLocation == null) {
-      print(
-        'BusRouteMapPage: _fetchRoutePolyline - startLocation or endLocation is null, exiting',
-      );
       return;
     }
 
@@ -428,19 +369,8 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
       '&start=$startLng,$startLat&end=$endLng,$endLat',
     );
 
-    print(
-      'BusRouteMapPage: OpenRouteService Directions API URL: ${orsDirectionsUrl.toString()}',
-    );
-
     try {
       final response = await http.get(orsDirectionsUrl);
-
-      print(
-        'BusRouteMapPage: OpenRouteService API response - Status Code: ${response.statusCode}',
-      );
-      print(
-        'BusRouteMapPage: OpenRouteService API response - Body: ${response.body}',
-      );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -456,23 +386,19 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
                       .toList();
             });
           }
-          print(
-            'BusRouteMapPage: _fetchRoutePolyline - Polyline points fetched successfully, count: ${_polylinePoints.length}',
-          );
         } else {
-          print(
-            'BusRouteMapPage: _fetchRoutePolyline - No route features found in ORS response.',
-          );
+          // print(
+          //   'BusRouteMapPage: _fetchRoutePolyline - No route features found in ORS response.',
+          // );
         }
       } else {
-        print(
-          'BusRouteMapPage: OpenRouteService API request failed: ${response.statusCode}, Body: ${response.body}',
-        );
+        // print(
+        //   'BusRouteMapPage: OpenRouteService API request failed: ${response.statusCode}, Body: ${response.body}',
+        // );
       }
     } catch (e) {
-      print('BusRouteMapPage: Error fetching route polyline from ORS: $e');
+      // print('BusRouteMapPage: Error fetching route polyline from ORS: $e');
     }
-    print('BusRouteMapPage: _fetchRoutePolyline finished');
   }
 
   String _formatDuration(Duration duration) {
@@ -624,7 +550,7 @@ class _BusRouteMapPageState extends State<BusRouteMapPage>
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             spreadRadius: 1,
                             blurRadius: 3,
                             offset: const Offset(0, 1),
