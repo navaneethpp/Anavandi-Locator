@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/screen/more_info_screen.dart';
 import 'package:geolocator/geolocator.dart'; // Import geolocator package
+import 'package:anavandi_locator/functions/eta_calculator.dart';
 
 class BusRouteMapPage extends StatefulWidget {
   final String startingPointName;
@@ -30,13 +31,15 @@ class BusRouteMapPage extends StatefulWidget {
   State<BusRouteMapPage> createState() => _BusRouteMapPageState();
 }
 
-class _BusRouteMapPageState extends State<BusRouteMapPage> {
+class _BusRouteMapPageState extends State<BusRouteMapPage>
+    with SingleTickerProviderStateMixin {
   LatLng? _startLocation;
   LatLng? _endLocation;
   List<LatLng> _polylinePoints = [];
   LatLng? _busLocation;
   LatLng? _userLocation; // User location fetched in this page
   bool _isInBus = false; // Track if the user is in the bus
+  String _eta = ''; // Estimated Time of Arrival
 
   // Add a map controller to programmatically control the map
   final MapController _mapController = MapController();
@@ -225,6 +228,23 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
                     _busLocation = LatLng(lat, lon);
                   });
                   print('BusRouteMapPage: Bus location updated: $_busLocation');
+                  calculateETA(
+                    busLocation: _busLocation,
+                    userLocation: _userLocation,
+                    endLocation: _endLocation,
+                    isInBus: _isInBus,
+                    onEtaUpdated: (eta) {
+                      if (mounted) {
+                        setState(() {
+                          _eta = eta;
+                        });
+                      }
+                    },
+                    mounted: mounted,
+                    vsync: this, // Pass the TickerProvider
+                    openRouteSerivceAPI: openRouteSerivceAPI,
+                  );
+                  ; // Calculate ETA whenever bus location updates
                 }
                 return;
               } else {
@@ -455,6 +475,14 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
     print('BusRouteMapPage: _fetchRoutePolyline finished');
   }
 
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(duration.inHours);
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$hours:$minutes:$seconds';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -626,17 +654,23 @@ class _BusRouteMapPageState extends State<BusRouteMapPage> {
                     child: Container(
                       height: 50.0, // Adjust height as needed
                       color: Colors.black,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (_eta.isNotEmpty)
                             Text(
-                              'Bus Speed: ${widget.busDataDocument['speed'] ?? 'N/A'} km/h',
-                              style: TextStyle(fontSize: 20),
+                              _isInBus
+                                  ? 'Estimated Time of Arrival: $_eta'
+                                  : 'Estimated Time to Reach You: $_eta',
+                              style: const TextStyle(fontSize: 16),
                             ),
-                          ],
-                        ),
+                          if (_eta.isEmpty)
+                            Text(
+                              'Calculating ETA...',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                        ],
                       ),
                     ),
                   ),

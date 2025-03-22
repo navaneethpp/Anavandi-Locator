@@ -19,7 +19,7 @@ class _AboutState extends State<About> {
           style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
         ),
         Text(
-          'Version: 0.2.4 beta',
+          'Version: 0.2.5 beta',
           style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       ],
