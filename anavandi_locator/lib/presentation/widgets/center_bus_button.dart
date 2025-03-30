@@ -17,7 +17,7 @@ class CenterBusButton extends StatelessWidget {
     return FloatingActionButton(
       onPressed: () {
         if (busLocation != null) {
-          mapController.move(busLocation!, 20.0);
+          mapController.move(busLocation!, 16.0);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Bus location not available yet.')),

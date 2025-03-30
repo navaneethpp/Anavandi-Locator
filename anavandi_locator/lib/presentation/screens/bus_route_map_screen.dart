@@ -225,7 +225,7 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
           OpenStreetMapWidget(
             mapController: _mapController,
             initialCenter: _bus?.location,
-            initialZoom: 20,
+            initialZoom: 16,
             layers: [
               if (_bus?.location != null)
                 MarkerLayer(
