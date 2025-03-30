@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:anavandi_locator/presentation/widgets/open_street_map_widget.dart';
 import 'package:anavandi_locator/data/models/bus_model.dart';
 import 'package:anavandi_locator/presentation/widgets/center_bus_button.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:anavandi_locator/services/bus_route_service.dart';
+import 'package:anavandi_locator/services/osrm_service.dart';
+import 'package:anavandi_locator/presentation/widgets/map_layers.dart';
+import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart';
+import 'package:anavandi_locator/presentation/widgets/error_message_widget.dart';
+import 'package:anavandi_locator/presentation/widgets/no_stops_warning.dart';
+import 'package:anavandi_locator/utils/utils.dart';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BusRouteMapScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -25,38 +32,234 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
   Bus? _bus;
   final MapController _mapController = MapController();
   List<Marker> _stopMarkers = [];
+  List<Polyline> _routePolylines = [];
   Timer? _locationUpdateTimer;
   bool _isLoading = true;
+  bool _isLoadingRoute = false;
   String? _errorMessage;
+  bool _showNoStopsWarning = false;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
+    print('BusRouteMapScreen initState called');
+    _initializeData();
+  }
+
+  @override
+  void didUpdateWidget(covariant BusRouteMapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.busRegistrationNumber != widget.busRegistrationNumber ||
+        oldWidget.tripId != widget.tripId) {
+      _resetStateAndInitialize();
+    }
+  }
+
+  void _resetStateAndInitialize() {
+    print('BusRouteMapScreen _resetStateAndInitialize called');
+    _bus = null;
+    _stopMarkers.clear();
+    _routePolylines.clear();
+    _isLoading = true;
+    _isLoadingRoute = false;
+    _errorMessage = null;
+    _showNoStopsWarning = false;
     _initializeData();
   }
 
   void _initializeData() async {
+    if (_isDisposed) return;
+
     try {
-      await _fetchBusLocation();
-      if (_bus?.tripId != null) {
-        await _fetchBusStops();
-      } else {
-        print('Warning: tripId is null, cannot fetch bus stops');
-        if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _showNoStopsWarning = false;
+      });
+
+      print('Fetching bus location for ${widget.busRegistrationNumber}');
+      final fetchedBus = await BusRouteService.fetchBusLocation(
+        widget.busRegistrationNumber,
+      );
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _bus = fetchedBus;
+        });
+        print('Fetched bus: $_bus');
+      }
+
+      String? currentTripId = widget.tripId;
+      if (currentTripId.isEmpty || currentTripId == '0') {
+        print(
+          'TripId not provided, fetching from assignData for ${widget.busRegistrationNumber}',
+        );
+        currentTripId = await BusRouteService.fetchTripIdFromAssignData(
+          widget.busRegistrationNumber,
+        );
+        if (mounted && _bus != null && currentTripId != null && !_isDisposed) {
           setState(() {
-            _errorMessage = 'Could not find trip information for this bus';
+            _bus!.tripId = currentTripId;
           });
+          print('Fetched tripId from assignData: $_bus!.tripId');
+        } else {
+          print(
+            'Could not fetch tripId from assignData for ${widget.busRegistrationNumber}',
+          );
         }
+      } else if (_bus != null) {
+        _bus!.tripId = currentTripId;
+        print('Using provided tripId: $_bus!.tripId');
+      }
+
+      if (_bus?.tripId != null) {
+        print('Fetching stops data for tripId: $_bus!.tripId');
+        final stopsData = await BusRouteService.fetchBusStopsData(
+          _bus!.tripId!,
+        );
+        if (stopsData != null && mounted && !_isDisposed) {
+          print('Fetched stops data: $stopsData');
+          final markers = <Marker>[];
+          final stopCoordinates = <LatLng>[];
+          for (var stopData in stopsData) {
+            print('Processing stop data: $stopData');
+            final lat = stopData['latitude'];
+            final lng = stopData['longitude'];
+            if (lat is num &&
+                lng is num &&
+                !lat.isNaN &&
+                !lng.isNaN &&
+                lat.isFinite &&
+                lng.isFinite) {
+              final latLng = LatLng(lat.toDouble(), lng.toDouble());
+              if (isValidCoordinate(latLng.latitude, latLng.longitude)) {
+                stopCoordinates.add(latLng);
+                markers.add(
+                  Marker(
+                    point: latLng,
+                    width: 20,
+                    height: 20,
+                    child: const Icon(
+                      Icons.location_on,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                  ),
+                );
+                print('Valid stop coordinate added: $latLng');
+              } else {
+                print(
+                  'Warning: Invalid coordinate found: Latitude=$lat, Longitude=$lng',
+                );
+              }
+            } else {
+              print(
+                'Warning: Latitude or Longitude is not a number or is null in stop data: $stopData',
+              );
+            }
+          }
+          setState(() {
+            _stopMarkers = markers;
+            _showNoStopsWarning = markers.isEmpty;
+          });
+          print('Number of valid stop markers: ${_stopMarkers.length}');
+
+          if (stopCoordinates.length >= 2) {
+            print(
+              'Generating route polylines for ${stopCoordinates.length} stops',
+            );
+            await _generateRoutePolylines(stopCoordinates);
+          } else if (_bus?.location != null && stopCoordinates.isNotEmpty) {
+            print('Generating route from bus to single stop');
+            final points = [_bus!.location!, ...stopCoordinates];
+            await _generateRoutePolylines(points);
+          } else if (_bus?.location != null &&
+              stopCoordinates.isEmpty &&
+              currentTripId != null) {
+            print(
+              'No stops found, trying to fetch route by routeId for tripId: $currentTripId',
+            );
+            final assignDataSnapshot =
+                await FirebaseFirestore.instance
+                    .collection('assignData')
+                    .where('tripId', isEqualTo: currentTripId)
+                    .limit(1)
+                    .get();
+            if (assignDataSnapshot.docs.isNotEmpty) {
+              final routeId =
+                  assignDataSnapshot.docs.first.data()['routeId']?.toString();
+              if (routeId != null) {
+                print('Fetching route stops by routeId: $routeId');
+                final routeStopsData =
+                    await BusRouteService.fetchRouteStopsByRouteId(routeId);
+                if (routeStopsData != null) {
+                  print('Fetched route stops data: $routeStopsData');
+                  final routeCoordinates = <LatLng>[];
+                  for (var stopData in routeStopsData) {
+                    final lat = stopData['latitude'];
+                    final lng = stopData['longitude'];
+                    if (lat is num &&
+                        lng is num &&
+                        !lat.isNaN &&
+                        !lng.isNaN &&
+                        lat.isFinite &&
+                        lng.isFinite) {
+                      final latLng = LatLng(lat.toDouble(), lng.toDouble());
+                      if (isValidCoordinate(
+                        latLng.latitude,
+                        latLng.longitude,
+                      )) {
+                        routeCoordinates.add(latLng);
+                      }
+                    }
+                  }
+                  if (routeCoordinates.length >= 2) {
+                    print('Generating route polylines from route data');
+                    await _generateRoutePolylines(routeCoordinates);
+                  } else {
+                    print(
+                      'Warning: Less than 2 valid coordinates in route data',
+                    );
+                  }
+                } else {
+                  print(
+                    'Warning: Could not fetch route stops data for routeId: $routeId',
+                  );
+                }
+              } else {
+                print('Warning: routeId is null in assignData');
+              }
+            } else {
+              print('Warning: No assignData found for tripId: $currentTripId');
+            }
+          } else {
+            print('Warning: No stops found and cannot fetch route by routeId');
+          }
+        } else if (mounted && !_isDisposed) {
+          setState(() {
+            _showNoStopsWarning = true;
+          });
+          print(
+            'Warning: Could not fetch bus stops data for tripId: $_bus!.tripId',
+          );
+        }
+      } else if (mounted && !_isDisposed) {
+        setState(() {
+          _errorMessage = 'Could not find trip information for this bus';
+        });
+        print(
+          'Error: Could not find trip information for bus ${widget.busRegistrationNumber}',
+        );
       }
     } catch (e) {
       print('Error initializing data: $e');
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
-          _errorMessage = 'Failed to load bus data';
+          _errorMessage = 'Failed to load bus data: $e';
         });
       }
     } finally {
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _isLoading = false;
         });
@@ -67,150 +270,114 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
 
   @override
   void dispose() {
+    _isDisposed = true;
     _locationUpdateTimer?.cancel();
-    _mapController.dispose();
     super.dispose();
   }
 
   void _startLocationUpdates() {
-    _locationUpdateTimer?.cancel(); // Cancel any existing timer
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (_bus?.location != null) {
-        _fetchBusLocation(updateMap: true);
+    if (_isDisposed) return;
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (
+      timer,
+    ) async {
+      if (_isDisposed) {
+        timer.cancel();
+        return;
+      }
+      final fetchedBus = await BusRouteService.fetchBusLocation(
+        widget.busRegistrationNumber,
+      );
+      if (mounted && !_isDisposed && fetchedBus != null) {
+        setState(() {
+          _bus = fetchedBus;
+          if (fetchedBus.location != null) {
+            try {
+              _mapController.move(
+                fetchedBus.location!,
+                _mapController.camera.zoom,
+              );
+            } catch (e) {
+              print('Error moving map on update: $e');
+            }
+          }
+        });
       }
     });
   }
 
-  Future<void> _fetchBusLocation({bool updateMap = false}) async {
+  Future<void> _generateRoutePolylines(List<LatLng> coordinates) async {
+    if (_isDisposed) return;
+    if (coordinates.length < 2) {
+      print('Cannot generate route, less than 2 coordinates provided');
+      return;
+    }
+
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _isLoadingRoute = true;
+      });
+    }
+
     try {
-      print('Fetching location for bus: ${widget.busRegistrationNumber}');
+      final List<Polyline> polylines = [];
+      for (int i = 0; i < coordinates.length - 1; i++) {
+        final start = coordinates[i];
+        final end = coordinates[i + 1];
 
-      final busDataSnapshot =
-          await FirebaseFirestore.instance
-              .collection('busData')
-              .where(
-                'busRegistrationNumber',
-                isEqualTo: widget.busRegistrationNumber.trim(),
-              )
-              .limit(1)
-              .get();
+        if (!isValidCoordinate(start.latitude, start.longitude) ||
+            !isValidCoordinate(end.latitude, end.longitude)) {
+          print('Skipping invalid coordinate pair for OSRM: $start to $end');
+          continue;
+        }
 
-      if (busDataSnapshot.docs.isEmpty) {
-        print('Bus not found in busData collection');
-        return;
-      }
+        final routePoints = await OSRMService.fetchRoute(start, end);
 
-      final bus = Bus.fromFirestore(busDataSnapshot.docs.first);
-
-      // Only fetch tripId if we don't have it yet
-      if (_bus?.tripId == null && bus.tripId == null) {
-        final assignDataSnapshot =
-            await FirebaseFirestore.instance
-                .collection('assignData')
-                .where(
-                  'busRegistrationNumber',
-                  isEqualTo: widget.busRegistrationNumber.trim(),
-                )
-                .limit(1)
-                .get();
-
-        if (assignDataSnapshot.docs.isNotEmpty) {
-          final tripId =
-              assignDataSnapshot.docs.first.data()['tripId'] as String?;
-          if (tripId != null) {
-            bus.tripId = tripId;
-            print('Found tripId: $tripId');
-          }
+        if (routePoints.isNotEmpty) {
+          polylines.add(
+            Polyline(
+              points: routePoints,
+              strokeWidth: 4.0,
+              color: Colors.blue.withOpacity(0.7),
+            ),
+          );
+        } else {
+          polylines.add(
+            Polyline(
+              points: [start, end],
+              strokeWidth: 3.0,
+              color: Colors.red.withOpacity(0.5),
+            ),
+          );
+          print(
+            'OSRM returned empty route, using direct line from $start to $end',
+          );
         }
       }
 
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
-          _bus = bus;
-          if (bus.location != null && updateMap) {
-            _mapController.move(
-              bus.location!,
-              _mapController.camera.zoom,
-            ); // Move to the location, keeping the current zoom
-          }
+          _routePolylines = polylines;
+          _isLoadingRoute = false;
         });
       }
     } catch (e) {
-      print('Error fetching bus location: $e');
-      if (mounted) {
+      print('Error generating route polylines: $e');
+      if (mounted && !_isDisposed) {
         setState(() {
-          _errorMessage = 'Failed to update bus location';
-        });
-      }
-    }
-  }
-
-  Future<void> _fetchBusStops() async {
-    try {
-      if (_bus?.tripId == null) {
-        print('Cannot fetch stops - tripId is null');
-        return;
-      }
-
-      print('Fetching stops for trip: ${_bus!.tripId}');
-      final assignDataSnapshot =
-          await FirebaseFirestore.instance
-              .collection('assignData')
-              .where('tripId', isEqualTo: _bus!.tripId!.trim())
-              .limit(1)
-              .get();
-
-      if (assignDataSnapshot.docs.isEmpty) {
-        print('No assignData found for tripId: ${_bus!.tripId}');
-        return;
-      }
-
-      final assignData = assignDataSnapshot.docs.first.data();
-      if (assignData['busStops'] == null || assignData['busStops'] is! List) {
-        print('busStops is null or not a List');
-        return;
-      }
-
-      final List<Marker> markers = [];
-      final busStopsList = assignData['busStops'] as List;
-
-      for (var stopData in busStopsList) {
-        try {
-          if (stopData is! Map<String, dynamic>) continue;
-
-          final lat = stopData['latitude'];
-          final lng = stopData['longitude'];
-
-          if (lat is num && lng is num) {
-            markers.add(
-              Marker(
-                point: LatLng(lat.toDouble(), lng.toDouble()),
-                width: 20,
-                height: 20,
-                child: const Icon(
-                  Icons.location_on,
-                  color: Colors.red,
-                  size: 20,
-                ),
+          _isLoadingRoute = false;
+          if (coordinates.length >= 2) {
+            _routePolylines = [
+              Polyline(
+                points: coordinates,
+                strokeWidth: 3.0,
+                color: Colors.red.withOpacity(0.5),
               ),
+            ];
+            print(
+              'Fallback to direct line between all points due to error: $e',
             );
           }
-        } catch (e) {
-          print('Error processing stop data: $e');
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _stopMarkers = markers;
-        });
-      }
-      print('Successfully loaded ${markers.length} bus stops');
-    } catch (e) {
-      print('Error fetching bus stops: $e');
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Failed to load bus stops';
         });
       }
     }
@@ -227,37 +394,38 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
             initialCenter: _bus?.location,
             initialZoom: 16,
             layers: [
-              if (_bus?.location != null)
-                MarkerLayer(
-                  markers: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.app',
+              ),
+              MarkerLayer(
+                markers: [
+                  if (_bus?.location != null)
                     Marker(
                       point: _bus!.location!,
-                      width: 50,
-                      height: 50,
+                      width: 20,
+                      height: 20,
                       child: const Icon(
                         Icons.directions_bus,
                         color: Colors.blue,
-                        size: 40,
+                        size: 20,
                       ),
                     ),
-                  ],
-                ),
-              MarkerLayer(markers: _stopMarkers),
+                  ..._stopMarkers,
+                ],
+              ),
+              PolylineLayer(polylines: _routePolylines),
             ],
           ),
-          if (_isLoading) const Center(child: CircularProgressIndicator()),
+          if (_isLoading || _isLoadingRoute) const LoadingIndicator(),
           if (_errorMessage != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 18),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          if (_bus?.location != null)
+            ErrorMessageWidget(message: _errorMessage!),
+          if (_showNoStopsWarning &&
+              !_isLoading &&
+              !_isLoadingRoute &&
+              _errorMessage == null)
+            const NoStopsWarning(),
+          if (_bus?.location != null && !_isLoading)
             Positioned(
               bottom: 20,
               right: 20,
@@ -268,13 +436,6 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
             ),
         ],
       ),
-      floatingActionButton:
-          _errorMessage != null
-              ? FloatingActionButton(
-                onPressed: _initializeData,
-                child: const Icon(Icons.refresh),
-              )
-              : null,
     );
   }
 }

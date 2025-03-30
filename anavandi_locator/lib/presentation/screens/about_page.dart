@@ -5,8 +5,17 @@ class AboutPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('About Anavandi Locator', style: TextStyle(fontSize: 24)),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Center(
+          child: Text(
+            'Anavandi Locator',
+            style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const Center(child: Text('Version: 0.2.5 beta')),
+      ],
     );
   }
 }
