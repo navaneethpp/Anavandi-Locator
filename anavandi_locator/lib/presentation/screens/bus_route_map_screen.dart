@@ -13,7 +13,8 @@ import 'package:anavandi_locator/presentation/widgets/no_stops_warning.dart';
 import 'package:anavandi_locator/utils/utils.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:anavandi_locator/presentation/widgets/refresh_button.dart'; // Import the new widget
+import 'package:anavandi_locator/presentation/widgets/refresh_button.dart';
+import 'package:anavandi_locator/presentation/screens/route_details_screen.dart'; // Import the new screen
 
 class BusRouteMapScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -42,6 +43,7 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
   bool _isDisposed = false;
   String? _startPoint;
   String? _destinationPoint;
+  List<Map<String, dynamic>> _stopsData = []; // To store fetched stops data
 
   @override
   void initState() {
@@ -53,9 +55,18 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
   @override
   void didUpdateWidget(covariant BusRouteMapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    print('BusRouteMapScreen didUpdateWidget called');
     if (oldWidget.busRegistrationNumber != widget.busRegistrationNumber ||
         oldWidget.tripId != widget.tripId) {
       _resetStateAndInitialize();
+    } else {
+      if (_locationUpdateTimer?.isActive == false ||
+          _locationUpdateTimer == null) {
+        _startLocationUpdates();
+      }
+      print(
+        'BusRegistrationNumber and TripId are the same, keeping existing data.',
+      );
     }
   }
 
@@ -70,6 +81,7 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
     _showNoStopsWarning = false;
     _startPoint = null;
     _destinationPoint = null;
+    _stopsData.clear();
     _initializeData();
   }
 
@@ -83,6 +95,7 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
         _showNoStopsWarning = false;
         _startPoint = null;
         _destinationPoint = null;
+        _stopsData.clear();
       });
 
       print('Fetching bus location for ${widget.busRegistrationNumber}');
@@ -95,7 +108,6 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
         });
         print('Fetched bus: $_bus');
 
-        // Center the map on the bus's initial location if available
         if (_bus?.location != null) {
           try {
             _mapController.move(_bus!.location!, _mapController.camera.zoom);
@@ -129,7 +141,6 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
       }
 
       if (_bus?.tripId != null) {
-        // Fetch start and end points from assignData
         final assignDataSnapshot =
             await FirebaseFirestore.instance
                 .collection('assignData')
@@ -151,17 +162,20 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
         }
 
         print('Fetching stops data for tripId: $_bus!.tripId');
-        final stopsData = await BusRouteService.fetchBusStopsData(
+        final fetchedStopsData = await BusRouteService.fetchBusStopsData(
           _bus!.tripId!,
         );
-        if (stopsData != null && mounted && !_isDisposed) {
-          print('Fetched stops data: $stopsData');
+        if (fetchedStopsData != null && mounted && !_isDisposed) {
+          print('Fetched stops data: $fetchedStopsData');
+          setState(() {
+            _stopsData = fetchedStopsData;
+          });
           final markers = <Marker>[];
           final stopCoordinates = <LatLng>[];
-          for (var stopData in stopsData) {
-            print('Processing stop data: $stopData');
+          for (var stopData in fetchedStopsData) {
             final lat = stopData['latitude'];
             final lng = stopData['longitude'];
+            final stopName = stopData['stopName']?.toString() ?? 'Stop';
             if (lat is num &&
                 lng is num &&
                 !lat.isNaN &&
@@ -174,16 +188,30 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
                 markers.add(
                   Marker(
                     point: latLng,
-                    width: 20,
-                    height: 20,
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.red,
-                      size: 20,
+                    width: 200,
+                    height: 60,
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        Text(
+                          stopName,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            backgroundColor: Colors.white70,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
-                print('Valid stop coordinate added: $latLng');
+                print(
+                  'Valid stop coordinate added: $latLng with name: $stopName',
+                );
               } else {
                 print(
                   'Warning: Invalid coordinate found: Latitude=$lat, Longitude=$lng',
@@ -202,20 +230,13 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
           print('Number of valid stop markers: ${_stopMarkers.length}');
 
           if (stopCoordinates.length >= 2) {
-            print(
-              'Generating route polylines for ${stopCoordinates.length} stops',
-            );
             await _generateRoutePolylines(stopCoordinates);
           } else if (_bus?.location != null && stopCoordinates.isNotEmpty) {
-            print('Generating route from bus to single stop');
             final points = [_bus!.location!, ...stopCoordinates];
             await _generateRoutePolylines(points);
           } else if (_bus?.location != null &&
               stopCoordinates.isEmpty &&
               currentTripId != null) {
-            print(
-              'No stops found, trying to fetch route by routeId for tripId: $currentTripId',
-            );
             final assignDataSnapshot =
                 await FirebaseFirestore.instance
                     .collection('assignData')
@@ -226,11 +247,9 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
               final routeId =
                   assignDataSnapshot.docs.first.data()['routeId']?.toString();
               if (routeId != null) {
-                print('Fetching route stops by routeId: $routeId');
                 final routeStopsData =
                     await BusRouteService.fetchRouteStopsByRouteId(routeId);
                 if (routeStopsData != null) {
-                  print('Fetched route stops data: $routeStopsData');
                   final routeCoordinates = <LatLng>[];
                   for (var stopData in routeStopsData) {
                     final lat = stopData['latitude'];
@@ -251,7 +270,6 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
                     }
                   }
                   if (routeCoordinates.length >= 2) {
-                    print('Generating route polylines from route data');
                     await _generateRoutePolylines(routeCoordinates);
                   } else {
                     print(
@@ -309,6 +327,7 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
   void dispose() {
     _isDisposed = true;
     _locationUpdateTimer?.cancel();
+    print('BusRouteMapScreen dispose called');
     super.dispose();
   }
 
@@ -422,6 +441,12 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('Checking conditions for More Info button:');
+    print('  _bus?.tripId: ${_bus?.tripId}');
+    print('  _startPoint: $_startPoint');
+    print('  _destinationPoint: $_destinationPoint');
+    print('  _stopsData.isNotEmpty: ${_stopsData.isNotEmpty}');
+
     Widget appBarTitleWidget;
     if (_startPoint != null && _destinationPoint != null) {
       appBarTitleWidget = Column(
@@ -443,6 +468,7 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
     }
 
     return Scaffold(
+      key: ValueKey(widget.busRegistrationNumber),
       appBar: AppBar(
         title: appBarTitleWidget,
         actions: [RefreshButton(onPressed: _resetStateAndInitialize)],
@@ -485,15 +511,55 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
               !_isLoadingRoute &&
               _errorMessage == null)
             const NoStopsWarning(),
-          if (_bus?.location != null && !_isLoading)
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: CenterBusButton(
-                mapController: _mapController,
-                busLocation: _bus?.location,
-              ),
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                if (_bus?.location != null && !_isLoading)
+                  CenterBusButton(
+                    mapController: _mapController,
+                    busLocation: _bus?.location,
+                  ),
+                if (_bus?.tripId != null &&
+                    _startPoint != null &&
+                    _destinationPoint != null &&
+                    _stopsData.isNotEmpty)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => RouteDetailsScreen(
+                                stopsData: _stopsData,
+                                startPoint: _startPoint!,
+                                destinationPoint: _destinationPoint!,
+                                initialBusLocation:
+                                    _bus?.location, // Corrected parameter name
+                                busLocationStream: Stream.periodic(
+                                      const Duration(seconds: 5),
+                                      (_) async {
+                                        final fetchedBus =
+                                            await BusRouteService.fetchBusLocation(
+                                              widget.busRegistrationNumber,
+                                            );
+                                        return fetchedBus?.location;
+                                      },
+                                    )
+                                    .asyncMap((event) async => await event)
+                                    .takeWhile((value) => mounted),
+                              ),
+                        ),
+                      );
+                    },
+                    child: const Text('More Info'),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
