@@ -14,7 +14,7 @@ class AboutPage extends StatelessWidget {
             child: Image.asset('assets/logo.png', width: 300, height: 200),
           ),
         ),
-        const Center(child: Text('Version: 0.2.8.3 alpha')),
+        const Center(child: Text('Version: 0.2.8.4 alpha')),
       ],
     );
   }

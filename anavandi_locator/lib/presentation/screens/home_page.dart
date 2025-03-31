@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:anavandi_locator/presentation/screens/about_page.dart';
 import 'package:anavandi_locator/presentation/screens/home_content.dart';
 import 'package:anavandi_locator/presentation/screens/home/home_submit_handler.dart';
-import 'package:anavandi_locator/data/models/bus_route.dart'; // Import the model
+import 'package:anavandi_locator/data/models/bus_route.dart';
+import 'package:sliding_clipped_nav_bar/sliding_clipped_nav_bar.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -72,6 +73,8 @@ class _HomePageState extends State<HomePage> {
         body: PageView(
           controller: _pageController,
           onPageChanged: _onPageChanged,
+          physics:
+              const NeverScrollableScrollPhysics(), // To disable swipe navigation of PageView
           children: <Widget>[
             HomeContent(
               key: _homeContentKey, // Assign the GlobalKey to HomeContent
@@ -90,14 +93,15 @@ class _HomePageState extends State<HomePage> {
             const AboutPage(),
           ],
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.info), label: 'About'),
+        bottomNavigationBar: SlidingClippedNavBar(
+          backgroundColor: Colors.transparent,
+          onButtonPressed: _onItemTapped,
+          activeColor: Theme.of(context).primaryColor,
+          selectedIndex: _selectedIndex,
+          barItems: <BarItem>[
+            BarItem(icon: Icons.home, title: 'Home'),
+            BarItem(icon: Icons.info, title: 'About'),
           ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: Colors.blue,
-          onTap: _onItemTapped,
         ),
       ),
     );
