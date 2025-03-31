@@ -6,7 +6,7 @@ import 'package:anavandi_locator/data/repositories/place_repository.dart';
 import 'package:anavandi_locator/presentation/widgets/place_suggestion_list.dart';
 import 'package:anavandi_locator/data/models/bus_route.dart';
 import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
-import 'package:anavandi_locator/common/widgets/swap_button.dart'; // Import the new widget
+import 'package:anavandi_locator/common/widgets/swap_button.dart';
 
 class HomeContent extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -81,6 +81,9 @@ class HomeContentState extends State<HomeContent> {
     _startPointSuggestions = [];
     _hideStartPointSuggestionsOverlay();
     _startPointFocusNode.unfocus();
+    FocusScope.of(
+      context,
+    ).requestFocus(_destinationFocusNode); // This line moves the focus
   }
 
   void _selectDestinationSuggestion(Place place) {
@@ -190,12 +193,14 @@ class HomeContentState extends State<HomeContent> {
               hintText: 'Enter Starting Point',
               prefixIcon: Icons.location_on,
               onChanged: _onStartPointChanged,
+              onSubmitted: (_) {
+                // Add the onSubmitted callback here
+                FocusScope.of(context).requestFocus(_destinationFocusNode);
+              },
             ),
           ),
           const SizedBox(height: 8),
-          SwapButton(
-            onPressed: _swapTextFields,
-          ), // Use the new SwapButton widget
+          SwapButton(onPressed: _swapTextFields),
           const SizedBox(height: 8),
           CompositedTransformTarget(
             link: _destinationLayerLink,

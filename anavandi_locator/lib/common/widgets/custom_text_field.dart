@@ -8,6 +8,7 @@ class CustomTextField extends StatefulWidget {
   final bool obscureText;
   final ValueChanged<String>? onChanged;
   final FocusNode? focusNode;
+  final ValueChanged<String>? onSubmitted; // Add this line
 
   const CustomTextField({
     super.key,
@@ -18,6 +19,7 @@ class CustomTextField extends StatefulWidget {
     this.obscureText = false,
     this.onChanged,
     this.focusNode,
+    this.onSubmitted, // Add this to the constructor
   });
 
   @override
@@ -36,9 +38,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   @override
   void dispose() {
-    _controller.removeListener(
-      _updateClearButtonVisibility,
-    ); // Remove the listener
+    _controller.removeListener(_updateClearButtonVisibility);
     if (widget.controller == null) {
       _controller.dispose();
     }
@@ -47,15 +47,14 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   void _updateClearButtonVisibility() {
     if (mounted) {
-      // Check if the widget is still mounted before calling setState
-      setState(() {}); // Rebuild the widget to update the suffixIcon
+      setState(() {});
     }
   }
 
   void _clearTextField() {
     _controller.clear();
     if (widget.onChanged != null) {
-      widget.onChanged!(''); // Notify parent about the change
+      widget.onChanged!('');
     }
   }
 
@@ -69,6 +68,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         keyboardType: widget.keyboardType,
         obscureText: widget.obscureText,
         onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted, // Pass the onSubmitted callback here
         decoration: InputDecoration(
           hintText: widget.hintText,
           prefixIcon:

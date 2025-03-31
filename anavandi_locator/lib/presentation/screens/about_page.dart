@@ -14,7 +14,7 @@ class AboutPage extends StatelessWidget {
             style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold),
           ),
         ),
-        const Center(child: Text('Version: 0.2.6 beta')),
+        const Center(child: Text('Version: 0.2.7 beta')),
       ],
     );
   }
