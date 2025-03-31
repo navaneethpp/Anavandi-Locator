@@ -7,6 +7,7 @@ import 'package:anavandi_locator/presentation/widgets/place_suggestion_list.dart
 import 'package:anavandi_locator/data/models/bus_route.dart';
 import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
 import 'package:anavandi_locator/common/widgets/swap_button.dart';
+import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart'; // Import the loading indicator
 import 'dart:async';
 
 class HomeContent extends StatefulWidget {
@@ -40,6 +41,7 @@ class HomeContentState extends State<HomeContent> {
   List<BusRoute> _routes = [];
   bool _hasSearched = false;
   Timer? _noRouteTimer;
+  bool _isLoading = false; // Add a loading state variable
 
   void _onStartPointChanged(String value) async {
     if (value.isEmpty) {
@@ -159,6 +161,7 @@ class HomeContentState extends State<HomeContent> {
   void updateRoute(List<BusRoute> routes) {
     setState(() {
       _routes = routes;
+      _isLoading = false; // Set loading to false when routes are received
       if (_routes.isNotEmpty) {
         _hasSearched = true;
         _noRouteTimer?.cancel(); // Cancel any existing timer
@@ -204,67 +207,78 @@ class HomeContentState extends State<HomeContent> {
         }
       },
       behavior: HitTestBehavior.translucent,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            CompositedTransformTarget(
-              link: _startPointLayerLink,
-              child: CustomTextField(
-                focusNode: _startPointFocusNode,
-                controller: widget.startPointController,
-                hintText: 'Enter Starting Point',
-                prefixIcon: Icons.location_on,
-                onChanged: _onStartPointChanged,
-                onSubmitted: (_) {
-                  FocusScope.of(context).requestFocus(_destinationFocusNode);
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            SwapButton(onPressed: _swapTextFields),
-            const SizedBox(height: 8),
-            CompositedTransformTarget(
-              link: _destinationLayerLink,
-              child: CustomTextField(
-                focusNode: _destinationFocusNode,
-                controller: widget.destinationController,
-                hintText: 'Enter Destination',
-                prefixIcon: Icons.flag,
-                onChanged: _onDestinationChanged,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SubmitButton(
-              label: 'Find Bus Route',
-              onPressed: () {
-                setState(() {
-                  _hasSearched = true;
-                });
-                widget.onSubmit();
-              },
-            ),
-            const SizedBox(height: 16),
-            if (_routes.isNotEmpty)
-              Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _routes.length,
-                  itemBuilder: (context, index) {
-                    final route = _routes[index];
-                    return BusRouteCard(route: route);
+      child: Stack(
+        // Wrap the Padding with a Stack
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                CompositedTransformTarget(
+                  link: _startPointLayerLink,
+                  child: CustomTextField(
+                    focusNode: _startPointFocusNode,
+                    controller: widget.startPointController,
+                    hintText: 'Enter Starting Point',
+                    prefixIcon: Icons.location_on,
+                    onChanged: _onStartPointChanged,
+                    onSubmitted: (_) {
+                      FocusScope.of(
+                        context,
+                      ).requestFocus(_destinationFocusNode);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SwapButton(onPressed: _swapTextFields),
+                const SizedBox(height: 8),
+                CompositedTransformTarget(
+                  link: _destinationLayerLink,
+                  child: CustomTextField(
+                    focusNode: _destinationFocusNode,
+                    controller: widget.destinationController,
+                    hintText: 'Enter Destination',
+                    prefixIcon: Icons.flag,
+                    onChanged: _onDestinationChanged,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SubmitButton(
+                  label: 'Find the Bus',
+                  onPressed: () {
+                    setState(() {
+                      _hasSearched = true;
+                      _isLoading =
+                          true; // Set loading to true when button is pressed
+                    });
+                    widget.onSubmit();
                   },
                 ),
-              )
-            else if (_hasSearched)
-              Text(
-                'No route found between "${widget.startPointController.text}" and "${widget.destinationController.text}".',
-                style: const TextStyle(fontStyle: FontStyle.italic),
-                textAlign: TextAlign.center, // Added to center the text
-              ),
-          ],
-        ),
+                const SizedBox(height: 16),
+                if (_routes.isNotEmpty)
+                  Expanded(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _routes.length,
+                      itemBuilder: (context, index) {
+                        final route = _routes[index];
+                        return BusRouteCard(route: route);
+                      },
+                    ),
+                  )
+                else if (_hasSearched)
+                  Text(
+                    'No route found between "${widget.startPointController.text}" and "${widget.destinationController.text}".',
+                    style: const TextStyle(fontStyle: FontStyle.italic),
+                    textAlign: TextAlign.center,
+                  ),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            const LoadingIndicator(), // Show loading indicator when _isLoading is true
+        ],
       ),
     );
   }
