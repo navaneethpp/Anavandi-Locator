@@ -73,8 +73,6 @@ class _HomePageState extends State<HomePage> {
         body: PageView(
           controller: _pageController,
           onPageChanged: _onPageChanged,
-          physics:
-              const NeverScrollableScrollPhysics(), // To disable swipe navigation of PageView
           children: <Widget>[
             HomeContent(
               key: _homeContentKey, // Assign the GlobalKey to HomeContent
