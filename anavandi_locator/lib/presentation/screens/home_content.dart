@@ -4,14 +4,15 @@ import 'package:anavandi_locator/common/widgets/submit_button.dart';
 import 'package:anavandi_locator/data/models/place.dart';
 import 'package:anavandi_locator/data/repositories/place_repository.dart';
 import 'package:anavandi_locator/presentation/widgets/place_suggestion_list.dart';
-import 'package:anavandi_locator/data/models/bus_route.dart'; // Import the model
-import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart'; // Import the new widget
+import 'package:anavandi_locator/data/models/bus_route.dart';
+import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
+import 'package:anavandi_locator/common/widgets/swap_button.dart'; // Import the new widget
 
 class HomeContent extends StatefulWidget {
   final VoidCallback onSubmit;
   final TextEditingController startPointController;
   final TextEditingController destinationController;
-  final Function(List<BusRoute>) onRouteFound; // Receive a list of BusRoute
+  final Function(List<BusRoute>) onRouteFound;
 
   const HomeContent({
     super.key,
@@ -35,7 +36,7 @@ class HomeContentState extends State<HomeContent> {
   OverlayEntry? _destinationOverlayEntry;
   final LayerLink _startPointLayerLink = LayerLink();
   final LayerLink _destinationLayerLink = LayerLink();
-  List<BusRoute> _routes = []; // State to hold the list of BusRoute
+  List<BusRoute> _routes = [];
 
   void _onStartPointChanged(String value) async {
     if (value.isEmpty) {
@@ -159,6 +160,12 @@ class HomeContentState extends State<HomeContent> {
     });
   }
 
+  void _swapTextFields() {
+    final String temp = widget.startPointController.text;
+    widget.startPointController.text = widget.destinationController.text;
+    widget.destinationController.text = temp;
+  }
+
   @override
   void dispose() {
     _startPointFocusNode.dispose();
@@ -185,7 +192,11 @@ class HomeContentState extends State<HomeContent> {
               onChanged: _onStartPointChanged,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          SwapButton(
+            onPressed: _swapTextFields,
+          ), // Use the new SwapButton widget
+          const SizedBox(height: 8),
           CompositedTransformTarget(
             link: _destinationLayerLink,
             child: CustomTextField(
@@ -200,7 +211,7 @@ class HomeContentState extends State<HomeContent> {
           SubmitButton(
             label: 'Submit',
             onPressed: () {
-              widget.onSubmit(); // Call the onSubmit passed from HomePage
+              widget.onSubmit();
             },
           ),
           const SizedBox(height: 16),
