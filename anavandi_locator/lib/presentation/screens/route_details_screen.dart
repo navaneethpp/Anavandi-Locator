@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart'; // Import latlong2 for coordinate calculations
-import 'package:geolocator/geolocator.dart'; // For calculating distances
-import 'dart:async'; // For Timer
+import 'package:latlong2/latlong.dart';
+import 'package:anavandi_locator/utils/string_extensions.dart';
+import 'dart:math' as math;
 
 class RouteDetailsScreen extends StatefulWidget {
   final List<Map<String, dynamic>> stopsData;
   final String startPoint;
   final String destinationPoint;
-  final LatLng? initialBusLocation; // Use initial location, will be updated
-  final Stream<LatLng?> busLocationStream; // Receive a stream of bus locations
+  final LatLng? initialBusLocation;
+  final Stream<LatLng?> busLocationStream;
 
   const RouteDetailsScreen({
     super.key,
@@ -24,144 +24,151 @@ class RouteDetailsScreen extends StatefulWidget {
 }
 
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
-  int? _currentStopIndex;
   LatLng? _currentBusLocation;
-  StreamSubscription<LatLng?>? _busLocationSubscription;
+  int? _highlightedIndex;
+  final double _proximityThreshold = 50; // Proximity in meters
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _currentBusLocation = widget.initialBusLocation;
-    _findCurrentStop();
-    _busLocationSubscription = widget.busLocationStream.listen((newLocation) {
-      if (newLocation != null) {
+    widget.busLocationStream.listen((location) {
+      if (mounted && location != null) {
         setState(() {
-          _currentBusLocation = newLocation;
-          _findCurrentStop();
+          _currentBusLocation = location;
+          _highlightCurrentStop();
         });
       }
     });
+    _highlightCurrentStop();
   }
 
   @override
   void dispose() {
-    _busLocationSubscription?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // Function to calculate the distance between two coordinates
-  double _calculateDistance(LatLng point1, LatLng point2) {
-    return Geolocator.distanceBetween(
-      point1.latitude,
-      point1.longitude,
-      point2.latitude,
-      point2.longitude,
-    );
+  double _calculateDistance(LatLng latlng1, double lat2, double lng2) {
+    const R = 6371e3; // metres
+    final lat1 = latlng1.latitude * math.pi / 180; // rad
+    final lon1 = latlng1.longitude * math.pi / 180;
+    final lat2Rad = lat2 * math.pi / 180;
+    final lon2Rad = lng2 * math.pi / 180;
+    final deltaLat = lat2Rad - lat1;
+    final deltaLon = lon2Rad - lon1;
+
+    final a =
+        math.sin(deltaLat / 2) * math.sin(deltaLat / 2) +
+        math.cos(lat1) *
+            math.cos(lat2Rad) *
+            math.sin(deltaLon / 2) *
+            math.sin(deltaLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+
+    return R * c; // in metres
   }
 
-  void _findCurrentStop() {
+  void _highlightCurrentStop() {
     if (_currentBusLocation == null || widget.stopsData.isEmpty) {
       return;
     }
 
     double minDistance = double.infinity;
-    int closestStopIndex = -1;
+    int? closestIndex;
 
     for (int i = 0; i < widget.stopsData.length; i++) {
       final stop = widget.stopsData[i];
-      final stopLatitude = stop['latitude'];
-      final stopLongitude = stop['longitude'];
+      final stopLat = stop['latitude'] as num?;
+      final stopLng = stop['longitude'] as num?;
 
-      if (stopLatitude is num && stopLongitude is num) {
-        final stopLocation = LatLng(
-          stopLatitude.toDouble(),
-          stopLongitude.toDouble(),
+      if (stopLat != null && stopLng != null) {
+        final distance = _calculateDistance(
+          _currentBusLocation!,
+          stopLat.toDouble(),
+          stopLng.toDouble(),
         );
-        final distance = _calculateDistance(_currentBusLocation!, stopLocation);
 
         if (distance < minDistance) {
           minDistance = distance;
-          closestStopIndex = i;
+          closestIndex = i;
         }
       }
     }
 
-    if (mounted) {
-      setState(() {
-        _currentStopIndex = closestStopIndex != -1 ? closestStopIndex : null;
-      });
+    // Highlight if the closest stop is within the threshold
+    if (closestIndex != null && minDistance <= _proximityThreshold) {
+      if (_highlightedIndex != closestIndex) {
+        setState(() {
+          _highlightedIndex = closestIndex;
+          // Scroll to the highlighted item
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_highlightedIndex != null &&
+                _highlightedIndex! < widget.stopsData.length) {
+              _scrollController.animateTo(
+                _highlightedIndex! * 56.0, // Approximate height of a ListTile
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }
+          });
+        });
+      }
+    } else {
+      if (_highlightedIndex != null) {
+        setState(() {
+          _highlightedIndex = null; // Clear highlighting if not near a stop
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.startPoint} to ${widget.destinationPoint} Route'),
-      ),
-      body:
-          widget.stopsData.isEmpty
-              ? const Center(child: Text('No stop details available.'))
-              : ListView.builder(
-                itemCount: widget.stopsData.length,
-                itemBuilder: (context, index) {
-                  final stop = widget.stopsData[index];
-                  final isCurrentStop = index == _currentStopIndex;
-                  return Card(
-                    margin: const EdgeInsets.all(8.0),
-                    color: isCurrentStop ? Colors.yellow[100] : null,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  stop['stopName'] ?? 'Stop Name Not Available',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        isCurrentStop ? Colors.black87 : null,
-                                  ),
-                                ),
-                                const SizedBox(height: 4.0),
-                                if (stop['arrivalTime'] != null)
-                                  Text(
-                                    'Arrival: ${stop['arrivalTime']}',
-                                    style: TextStyle(
-                                      color:
-                                          isCurrentStop ? Colors.black54 : null,
-                                    ),
-                                  ),
-                                if (stop['departureTime'] != null)
-                                  Text(
-                                    'Departure: ${stop['departureTime']}',
-                                    style: TextStyle(
-                                      color:
-                                          isCurrentStop ? Colors.black54 : null,
-                                    ),
-                                  ),
-                              ],
-                            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child:
+              widget.stopsData.isEmpty
+                  ? const Center(child: Text('No stops data available.'))
+                  : ListView.builder(
+                    controller:
+                        _scrollController, // Attach the ScrollController
+                    itemCount: widget.stopsData.length,
+                    itemBuilder: (context, index) {
+                      final stop = widget.stopsData[index];
+                      final stopName =
+                          stop['stopName']?.toString().capitalize() ?? 'Stop';
+                      final stopTime =
+                          stop['stopTime']?.toString() ?? 'Time not available';
+                      final isHighlighted = index == _highlightedIndex;
+
+                      return ListTile(
+                        key: ValueKey(index), // Add a key for proper scrolling
+                        tileColor:
+                            isHighlighted ? Colors.yellow.shade100 : null,
+                        leading: Icon(
+                          isHighlighted
+                              ? Icons.location_on
+                              : Icons.directions_bus,
+                        ),
+                        title: Text(
+                          stopName,
+                          style: TextStyle(
+                            fontWeight:
+                                isHighlighted
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                           ),
-                          if (stop['stopTime'] != null)
-                            Text(
-                              stop['stopTime'],
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: isCurrentStop ? Colors.black87 : null,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+                        ),
+                        subtitle: Text('Time: $stopTime'),
+                      );
+                    },
+                  ),
+        ),
+      ],
     );
   }
 }

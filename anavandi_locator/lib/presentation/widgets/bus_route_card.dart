@@ -1,5 +1,5 @@
-import 'package:anavandi_locator/presentation/screens/bus_route_map_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:anavandi_locator/presentation/screens/bus_route_container_screen.dart'; // Import the new container screen
 import 'package:anavandi_locator/data/models/bus_route.dart';
 import 'package:anavandi_locator/utils/string_extensions.dart';
 
@@ -18,11 +18,10 @@ class BusRouteCard extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder:
-                (context) => BusRouteMapScreen(
+                (context) => BusRouteContainerScreen(
+                  // Navigate to BusRouteContainerScreen
                   tripId: route.tripId,
-                  busRegistrationNumber:
-                      route
-                          .busRegistrationNumber, // Pass the tripId                  busRegistrationNumber: route.busRegistrationNumber,
+                  busRegistrationNumber: route.busRegistrationNumber,
                 ),
           ),
         );

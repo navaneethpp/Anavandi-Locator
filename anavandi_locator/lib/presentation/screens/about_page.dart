@@ -26,7 +26,7 @@ class AboutPage extends StatelessWidget {
         ),
         const Center(
           child: Text(
-            'Version: 0.2.9.2 beta',
+            'Version: 0.2.9.3 beta',
             style: TextStyle(color: Colors.grey),
           ),
         ),
