@@ -7,11 +7,7 @@ class LoadingIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: LoadingAnimationWidget.hexagonDots(
-        // Choose your preferred animation here
-        color: Colors.blue, // Customize the color
-        size: 50, // Customize the size
-      ),
+      child: LoadingAnimationWidget.hexagonDots(color: Colors.blue, size: 50),
     );
   }
 }

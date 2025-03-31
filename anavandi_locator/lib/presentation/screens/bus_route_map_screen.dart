@@ -13,6 +13,7 @@ import 'package:anavandi_locator/presentation/widgets/no_stops_warning.dart';
 import 'package:anavandi_locator/utils/utils.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:anavandi_locator/presentation/widgets/refresh_button.dart'; // Import the new widget
 
 class BusRouteMapScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -39,6 +40,8 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
   String? _errorMessage;
   bool _showNoStopsWarning = false;
   bool _isDisposed = false;
+  String? _startPoint;
+  String? _destinationPoint;
 
   @override
   void initState() {
@@ -65,6 +68,8 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
     _isLoadingRoute = false;
     _errorMessage = null;
     _showNoStopsWarning = false;
+    _startPoint = null;
+    _destinationPoint = null;
     _initializeData();
   }
 
@@ -76,6 +81,8 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
         _isLoading = true;
         _errorMessage = null;
         _showNoStopsWarning = false;
+        _startPoint = null;
+        _destinationPoint = null;
       });
 
       print('Fetching bus location for ${widget.busRegistrationNumber}');
@@ -113,6 +120,27 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
       }
 
       if (_bus?.tripId != null) {
+        // Fetch start and end points from assignData
+        final assignDataSnapshot =
+            await FirebaseFirestore.instance
+                .collection('assignData')
+                .where('tripId', isEqualTo: _bus!.tripId!)
+                .limit(1)
+                .get();
+
+        if (assignDataSnapshot.docs.isNotEmpty) {
+          final assignData = assignDataSnapshot.docs.first.data();
+          setState(() {
+            _startPoint = assignData['startingPoint']?.toString();
+            _destinationPoint = assignData['endingPoint']?.toString();
+          });
+          print(
+            'Fetched start: $_startPoint, end: $_destinationPoint for tripId: ${_bus!.tripId!}',
+          );
+        } else {
+          print('Warning: No assignData found for tripId: ${_bus!.tripId!}');
+        }
+
         print('Fetching stops data for tripId: $_bus!.tripId');
         final stopsData = await BusRouteService.fetchBusStopsData(
           _bus!.tripId!,
@@ -385,8 +413,31 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Widget appBarTitleWidget;
+    if (_startPoint != null && _destinationPoint != null) {
+      appBarTitleWidget = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$_startPoint to $_destinationPoint',
+            style: const TextStyle(fontSize: 18),
+          ),
+          Text(
+            widget.busRegistrationNumber,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      );
+    } else {
+      appBarTitleWidget = Text('Route for ${widget.busRegistrationNumber}');
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text('Route for ${widget.busRegistrationNumber}')),
+      appBar: AppBar(
+        title: appBarTitleWidget,
+        actions: [RefreshButton(onPressed: _resetStateAndInitialize)],
+      ),
       body: Stack(
         children: [
           OpenStreetMapWidget(
