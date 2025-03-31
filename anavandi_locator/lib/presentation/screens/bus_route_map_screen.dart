@@ -94,6 +94,15 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
           _bus = fetchedBus;
         });
         print('Fetched bus: $_bus');
+
+        // Center the map on the bus's initial location if available
+        if (_bus?.location != null) {
+          try {
+            _mapController.move(_bus!.location!, _mapController.camera.zoom);
+          } catch (e) {
+            print('Error moving map to initial bus location: $e');
+          }
+        }
       }
 
       String? currentTripId = widget.tripId;
