@@ -14,7 +14,22 @@ class AboutPage extends StatelessWidget {
             child: Image.asset('assets/logo.png', width: 300, height: 200),
           ),
         ),
-        const Center(child: Text('Version: 0.2.9 beta')),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.email, color: Colors.blue),
+              SizedBox(width: 5),
+              Text('anavandiproject@gmail.com', style: TextStyle(fontSize: 20)),
+            ],
+          ),
+        ),
+        const Center(
+          child: Text(
+            'Version: 0.2.9 beta',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
       ],
     );
   }

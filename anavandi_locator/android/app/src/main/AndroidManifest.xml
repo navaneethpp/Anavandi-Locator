@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="anavandi_locator"
+        android:label="Anavandi Locator"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
