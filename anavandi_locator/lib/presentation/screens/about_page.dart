@@ -6,15 +6,15 @@ class AboutPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.end, // Changed this line
       children: [
-        const Center(
-          child: Text(
-            'Anavandi Locator',
-            style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold),
+        Expanded(
+          // Wrapped the image with Expanded
+          child: Center(
+            child: Image.asset('assets/logo.png', width: 300, height: 200),
           ),
         ),
-        const Center(child: Text('Version: 0.2.8.1 beta')),
+        const Center(child: Text('Version: 0.2.8.2 alpha')),
       ],
     );
   }
