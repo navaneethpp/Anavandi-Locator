@@ -7,6 +7,7 @@ import 'package:anavandi_locator/presentation/widgets/place_suggestion_list.dart
 import 'package:anavandi_locator/data/models/bus_route.dart';
 import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
 import 'package:anavandi_locator/common/widgets/swap_button.dart';
+import 'dart:async';
 
 class HomeContent extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -37,6 +38,8 @@ class HomeContentState extends State<HomeContent> {
   final LayerLink _startPointLayerLink = LayerLink();
   final LayerLink _destinationLayerLink = LayerLink();
   List<BusRoute> _routes = [];
+  bool _hasSearched = false;
+  Timer? _noRouteTimer;
 
   void _onStartPointChanged(String value) async {
     if (value.isEmpty) {
@@ -156,6 +159,19 @@ class HomeContentState extends State<HomeContent> {
   void updateRoute(List<BusRoute> routes) {
     setState(() {
       _routes = routes;
+      if (_routes.isNotEmpty) {
+        _hasSearched = true;
+        _noRouteTimer?.cancel(); // Cancel any existing timer
+      } else if (_hasSearched) {
+        // Start a timer to potentially hide the message
+        _noRouteTimer = Timer(const Duration(seconds: 10), () {
+          if (mounted && _routes.isEmpty) {
+            setState(() {
+              _hasSearched = false;
+            });
+          }
+        });
+      }
     });
   }
 
@@ -171,6 +187,7 @@ class HomeContentState extends State<HomeContent> {
     _destinationFocusNode.dispose();
     _hideStartPointSuggestionsOverlay();
     _hideDestinationSuggestionsOverlay();
+    _noRouteTimer?.cancel();
     super.dispose();
   }
 
@@ -220,8 +237,11 @@ class HomeContentState extends State<HomeContent> {
             ),
             const SizedBox(height: 24),
             SubmitButton(
-              label: 'Submit',
+              label: 'Find Bus Route',
               onPressed: () {
+                setState(() {
+                  _hasSearched = true;
+                });
                 widget.onSubmit();
               },
             ),
@@ -237,10 +257,11 @@ class HomeContentState extends State<HomeContent> {
                   },
                 ),
               )
-            else
-              const Text(
-                'No route found between the selected points.',
-                style: TextStyle(fontStyle: FontStyle.italic),
+            else if (_hasSearched)
+              Text(
+                'No route found between "${widget.startPointController.text}" and "${widget.destinationController.text}".',
+                style: const TextStyle(fontStyle: FontStyle.italic),
+                textAlign: TextAlign.center, // Added to center the text
               ),
           ],
         ),
