@@ -50,7 +50,25 @@ class _HomePageState extends State<HomePage> {
         FocusScope.of(context).requestFocus(FocusNode());
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Anavandi Locator')),
+        appBar: AppBar(
+          title: AnimatedSwitcher(
+            duration: const Duration(
+              milliseconds: 300,
+            ), // Adjust the duration as needed
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child:
+                _selectedIndex == 0
+                    ? const Text(
+                      'Anavandi Locator',
+                      key: ValueKey<int>(0),
+                    ) // Key for Home title
+                    : const SizedBox.shrink(
+                      key: ValueKey<int>(1),
+                    ), // Key for About (no title)
+          ),
+        ),
         body: PageView(
           controller: _pageController,
           onPageChanged: _onPageChanged,

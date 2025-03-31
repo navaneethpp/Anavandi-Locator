@@ -408,7 +408,7 @@ class _BusRouteMapScreenState extends State<BusRouteMapScreen> {
                       child: const Icon(
                         Icons.directions_bus,
                         color: Colors.blue,
-                        size: 20,
+                        size: 30,
                       ),
                     ),
                   ..._stopMarkers,

@@ -81,9 +81,7 @@ class HomeContentState extends State<HomeContent> {
     _startPointSuggestions = [];
     _hideStartPointSuggestionsOverlay();
     _startPointFocusNode.unfocus();
-    FocusScope.of(
-      context,
-    ).requestFocus(_destinationFocusNode); // This line moves the focus
+    FocusScope.of(context).requestFocus(_destinationFocusNode);
   }
 
   void _selectDestinationSuggestion(Place place) {
@@ -115,7 +113,6 @@ class HomeContentState extends State<HomeContent> {
               ),
             ),
       );
-
       Overlay.of(context).insert(_startPointOverlayEntry!);
     }
   }
@@ -142,7 +139,6 @@ class HomeContentState extends State<HomeContent> {
               ),
             ),
       );
-
       Overlay.of(context).insert(_destinationOverlayEntry!);
     }
   }
@@ -180,63 +176,74 @@ class HomeContentState extends State<HomeContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          CompositedTransformTarget(
-            link: _startPointLayerLink,
-            child: CustomTextField(
-              focusNode: _startPointFocusNode,
-              controller: widget.startPointController,
-              hintText: 'Enter Starting Point',
-              prefixIcon: Icons.location_on,
-              onChanged: _onStartPointChanged,
-              onSubmitted: (_) {
-                // Add the onSubmitted callback here
-                FocusScope.of(context).requestFocus(_destinationFocusNode);
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          SwapButton(onPressed: _swapTextFields),
-          const SizedBox(height: 8),
-          CompositedTransformTarget(
-            link: _destinationLayerLink,
-            child: CustomTextField(
-              focusNode: _destinationFocusNode,
-              controller: widget.destinationController,
-              hintText: 'Enter Destination',
-              prefixIcon: Icons.flag,
-              onChanged: _onDestinationChanged,
-            ),
-          ),
-          const SizedBox(height: 24),
-          SubmitButton(
-            label: 'Submit',
-            onPressed: () {
-              widget.onSubmit();
-            },
-          ),
-          const SizedBox(height: 16),
-          if (_routes.isNotEmpty)
-            Expanded(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _routes.length,
-                itemBuilder: (context, index) {
-                  final route = _routes[index];
-                  return BusRouteCard(route: route);
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        if (_startPointOverlayEntry != null) {
+          _hideStartPointSuggestionsOverlay();
+        }
+        if (_destinationOverlayEntry != null) {
+          _hideDestinationSuggestionsOverlay();
+        }
+      },
+      behavior: HitTestBehavior.translucent,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            CompositedTransformTarget(
+              link: _startPointLayerLink,
+              child: CustomTextField(
+                focusNode: _startPointFocusNode,
+                controller: widget.startPointController,
+                hintText: 'Enter Starting Point',
+                prefixIcon: Icons.location_on,
+                onChanged: _onStartPointChanged,
+                onSubmitted: (_) {
+                  FocusScope.of(context).requestFocus(_destinationFocusNode);
                 },
               ),
-            )
-          else
-            const Text(
-              'No route found between the selected points.',
-              style: TextStyle(fontStyle: FontStyle.italic),
             ),
-        ],
+            const SizedBox(height: 8),
+            SwapButton(onPressed: _swapTextFields),
+            const SizedBox(height: 8),
+            CompositedTransformTarget(
+              link: _destinationLayerLink,
+              child: CustomTextField(
+                focusNode: _destinationFocusNode,
+                controller: widget.destinationController,
+                hintText: 'Enter Destination',
+                prefixIcon: Icons.flag,
+                onChanged: _onDestinationChanged,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SubmitButton(
+              label: 'Submit',
+              onPressed: () {
+                widget.onSubmit();
+              },
+            ),
+            const SizedBox(height: 16),
+            if (_routes.isNotEmpty)
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _routes.length,
+                  itemBuilder: (context, index) {
+                    final route = _routes[index];
+                    return BusRouteCard(route: route);
+                  },
+                ),
+              )
+            else
+              const Text(
+                'No route found between the selected points.',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+          ],
+        ),
       ),
     );
   }
