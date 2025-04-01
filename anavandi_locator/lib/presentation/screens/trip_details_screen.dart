@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:anavandi_locator/presentation/widgets/current_bus_stop.dart'; // Import the new widget
+import 'package:anavandi_locator/presentation/widgets/current_bus_stop.dart';
+import 'package:anavandi_locator/presentation/widgets/detail_item.dart';
 
 class TripDetailsScreen extends StatelessWidget {
   final String tripId;
@@ -52,27 +53,35 @@ class TripDetailsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDetailItem(
-                  'Bus Registration Number',
-                  data['busRegistrationNumber']?.toString(),
+                DetailItem(
+                  label: 'Bus Registration Number',
+                  value: data['busRegistrationNumber']?.toString(),
                 ),
-                _buildDetailItem('Bus Type', data['busType']?.toString()),
-                _buildDetailItem('Driver Name', data['driverName']?.toString()),
-                _buildDetailItem(
-                  'Conductor Name',
-                  data['conductorName']?.toString(),
+                DetailItem(
+                  label: 'Bus Type',
+                  value: data['busType']?.toString(),
                 ),
-                _buildDetailItem('Depo Name', data['depoName']?.toString()),
-                _buildDetailItem(
-                  'Starting Point',
-                  data['startingPoint']?.toString(),
+                DetailItem(
+                  label: 'Driver Name',
+                  value: data['driverName']?.toString(),
                 ),
-                _buildDetailItem(
-                  'Ending Point',
-                  data['endingPoint']?.toString(),
+                DetailItem(
+                  label: 'Conductor Name',
+                  value: data['conductorName']?.toString(),
+                ),
+                DetailItem(
+                  label: 'Depo Name',
+                  value: data['depoName']?.toString(),
+                ),
+                DetailItem(
+                  label: 'Starting Point',
+                  value: data['startingPoint']?.toString(),
+                ),
+                DetailItem(
+                  label: 'Ending Point',
+                  value: data['endingPoint']?.toString(),
                 ),
                 CurrentBusStop(
-                  // Use the new widget here
                   busLocationStream: busLocationStream,
                   stopsData: stopsData,
                 ),
@@ -81,21 +90,6 @@ class TripDetailsScreen extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String? value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4.0),
-          Text(value ?? 'Not Available'),
-          const Divider(),
-        ],
       ),
     );
   }
