@@ -107,7 +107,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             if (_highlightedIndex != null &&
                 _highlightedIndex! < widget.stopsData.length) {
               _scrollController.animateTo(
-                _highlightedIndex! * 56.0, // Approximate height of a ListTile
+                _highlightedIndex! * 70.0, // Adjust for the new layout
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
               );
@@ -134,8 +134,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               widget.stopsData.isEmpty
                   ? const Center(child: Text('No stops data available.'))
                   : ListView.builder(
-                    controller:
-                        _scrollController, // Attach the ScrollController
+                    controller: _scrollController,
                     itemCount: widget.stopsData.length,
                     itemBuilder: (context, index) {
                       final stop = widget.stopsData[index];
@@ -143,27 +142,106 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                           stop['stopName']?.toString().capitalize() ?? 'Stop';
                       final stopTime =
                           stop['stopTime']?.toString() ?? 'Time not available';
+                      final nearCity =
+                          stop['nearestTown']?.toString() ??
+                          ''; // Get near city
                       final isHighlighted = index == _highlightedIndex;
+                      final isFirst = index == 0;
+                      final isLast = index == widget.stopsData.length - 1;
 
-                      return ListTile(
-                        key: ValueKey(index), // Add a key for proper scrolling
-                        tileColor:
-                            isHighlighted ? Colors.yellow.shade100 : null,
-                        leading: Icon(
-                          isHighlighted
-                              ? Icons.location_on
-                              : Icons.directions_bus,
+                      return Padding(
+                        key: ValueKey(index),
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Timeline Indicator
+                            SizedBox(
+                              width: 40,
+                              height: 60, // Add a fixed height to the SizedBox
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Vertical Line - fixed with proper positioning
+                                  if (!isFirst || !isLast)
+                                    Positioned(
+                                      top: isFirst ? 16 : 0,
+                                      bottom: isLast ? 16 : 0,
+                                      child: Container(
+                                        width: 2,
+                                        height:
+                                            double
+                                                .infinity, // Fill available space
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ),
+                                  // Stop Indicator
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color:
+                                          isHighlighted
+                                              ? Colors.blue
+                                              : Colors.grey.shade400,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child:
+                                        isHighlighted
+                                            ? const Icon(
+                                              Icons.location_on,
+                                              color: Colors.white,
+                                              size: 14,
+                                            )
+                                            : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Stop Details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    stopName,
+                                    style: TextStyle(
+                                      fontWeight:
+                                          isHighlighted
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  if (nearCity
+                                      .isNotEmpty) // Show near city if available
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2.0),
+                                      child: Text(
+                                        nearCity,
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Time: $stopTime',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        title: Text(
-                          stopName,
-                          style: TextStyle(
-                            fontWeight:
-                                isHighlighted
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                          ),
-                        ),
-                        subtitle: Text('Time: $stopTime'),
                       );
                     },
                   ),
