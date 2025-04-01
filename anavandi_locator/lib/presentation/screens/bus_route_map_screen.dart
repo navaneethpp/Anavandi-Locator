@@ -13,6 +13,48 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/presentation/widgets/refresh_button.dart';
 import 'package:geolocator/geolocator.dart'; // Import geolocator package
+import 'package:flutter_svg/flutter_svg.dart'; // Import flutter_svg
+import 'package:anavandi_locator/presentation/widgets/data_display_widget.dart'; // Import the new widget
+import 'dart:math';
+
+class CenterBusButton extends StatelessWidget {
+  final MapController mapController;
+  final LatLng? busLocation;
+
+  const CenterBusButton({
+    super.key,
+    required this.mapController,
+    this.busLocation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton(
+      onPressed: () {
+        if (busLocation != null) {
+          mapController.move(busLocation!, 16.0);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bus location not available yet.')),
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: SvgPicture.asset(
+          'assets/icon/recenter.svg', // Path to your SVG asset
+          width: 24, // Adjust width as needed
+          height: 24, // Adjust height as needed
+          colorFilter: ColorFilter.mode(
+            Theme.of(context).colorScheme.onSecondaryContainer,
+            BlendMode.srcIn,
+          ), // Optional: Apply color to the SVG
+        ),
+      ),
+      backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+    );
+  }
+}
 
 class BusRouteMapScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -44,13 +86,19 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
   List<Map<String, dynamic>> _stopsData = []; // To store fetched stops data
   bool _autoCenterEnabled = true; // New state variable
   LatLng? _userLocation; // New state variable for user location
+  String? _arrivalTime; // To store the estimated arrival time
+  String? _nearestStopName; // New state variable for the nearest stop name
 
   @override
   void initState() {
     super.initState();
     print('BusRouteMapScreen initState called');
     _initializeData();
-    _getCurrentUserLocation(); // Call to get user's location
+    _calculateArrivalTime();
+    _calculateNearestStop(); // Call the new method here
+    _getCurrentUserLocation();
+    _calculateArrivalTime();
+    _calculateNearestStop(); // Call the new method here
   }
 
   @override
@@ -86,6 +134,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     _stopsData.clear();
     _autoCenterEnabled = true; // Reset auto-center on re-initialize
     _userLocation = null; // Reset user location
+    _arrivalTime = null; // Reset arrival time
+    _nearestStopName = null; // Reset nearest stop name
     _initializeData();
     _getCurrentUserLocation(); // Re-fetch user location
   }
@@ -102,6 +152,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         _destinationPoint = null;
         _stopsData.clear();
         _autoCenterEnabled = true; // Enable auto-center initially
+        _arrivalTime = null; // Reset arrival time on new data load
+        _nearestStopName = null; // Reset nearest stop name on new data load
       });
 
       print('Fetching bus location for ${widget.busRegistrationNumber}');
@@ -233,10 +285,15 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
             _showNoStopsWarning = markers.isEmpty;
           });
           print('Number of valid stop markers: ${_stopMarkers.length}');
+          print(
+            'Stop Coordinates for route: $stopCoordinates',
+          ); // Log stop coordinates
 
           if (stopCoordinates.length >= 2) {
+            print('Generating route polylines from stop coordinates');
             await _generateRoutePolylines(stopCoordinates);
           } else if (_bus?.location != null && stopCoordinates.isNotEmpty) {
+            print('Generating route polylines from bus and stop coordinates');
             final points = [_bus!.location!, ...stopCoordinates];
             await _generateRoutePolylines(points);
           } else if (_bus?.location != null &&
@@ -274,11 +331,17 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
                       }
                     }
                   }
+                  print(
+                    'Route Coordinates from routeId: $routeCoordinates',
+                  ); // Log route coordinates
                   if (routeCoordinates.length >= 2) {
+                    print(
+                      'Generating route polylines from route coordinates (routeId)',
+                    );
                     await _generateRoutePolylines(routeCoordinates);
                   } else {
                     print(
-                      'Warning: Less than 2 valid coordinates in route data',
+                      'Warning: Less than 2 valid coordinates in route data (routeId)',
                     );
                   }
                 } else {
@@ -298,6 +361,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         } else if (mounted && !_isDisposed) {
           setState(() {
             _showNoStopsWarning = true;
+            _arrivalTime = 'No stops data';
+            _nearestStopName = null; // Reset nearest stop name if no stops data
           });
           print(
             'Warning: Could not fetch bus stops data for tripId: $_bus!.tripId',
@@ -306,6 +371,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       } else if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage = 'Could not find trip information for this bus';
+          _arrivalTime = 'Trip info missing';
+          _nearestStopName =
+              null; // Reset nearest stop name if trip info is missing
         });
         print(
           'Error: Could not find trip information for bus ${widget.busRegistrationNumber}',
@@ -316,6 +384,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage = 'Failed to load bus data: $e';
+          _arrivalTime = 'Load failed';
+          _nearestStopName = null; // Reset nearest stop name on load failure
         });
       }
     } finally {
@@ -363,6 +433,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
             }
           }
         });
+        _calculateArrivalTime(); // Calculate arrival time on location update
       }
     });
   }
@@ -422,6 +493,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
           _isLoadingRoute = false;
         });
       }
+      print(
+        'Number of route polylines: ${_routePolylines.length}',
+      ); // Log the number of polylines
     } catch (e) {
       print('Error generating route polylines: $e');
       if (mounted && !_isDisposed) {
@@ -448,13 +522,13 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted && !_isDisposed) {
         setState(() {
-          _errorMessage =
-              'Location services are disabled. Please enable them in your device settings.';
+          _errorMessage = 'Location services are disabled. Please enable them.';
+          _arrivalTime = 'Location disabled';
+          _nearestStopName = null;
         });
       }
       return;
@@ -468,6 +542,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
           setState(() {
             _errorMessage =
                 'Location permissions are denied. Please grant them to use this feature.';
+            _arrivalTime = 'Permission denied';
+            _nearestStopName = null;
           });
         }
         return;
@@ -478,7 +554,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage =
-              'Location permissions are permanently denied. Please enable them in your app settings.';
+              'Location permissions are permanently denied. Please enable them in your device settings.';
+          _arrivalTime = 'Permission denied permanently';
+          _nearestStopName = null;
         });
       }
       return;
@@ -493,15 +571,130 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
           _userLocation = LatLng(position.latitude, position.longitude);
         });
         print('User location: $_userLocation');
+        _calculateArrivalTime(); // Calculate arrival time after getting user location
+        _calculateNearestStop(); // Calculate nearest stop after getting user location
       }
     } catch (e) {
       print('Error getting user location: $e');
       if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage = 'Failed to get user location: $e';
+          _arrivalTime = 'Location error';
+          _nearestStopName = null;
         });
       }
     }
+  }
+
+  Future<void> _calculateArrivalTime() async {
+    if (_userLocation == null ||
+        _bus?.location == null ||
+        _stopMarkers.isEmpty) {
+      setState(() {
+        _arrivalTime = null; // Or a message like "Location data not available"
+        _nearestStopName = null;
+      });
+      return;
+    }
+
+    LatLng nearestStopPoint = LatLng(0, 0);
+    double minDistance = double.infinity;
+
+    for (final marker in _stopMarkers) {
+      final distance = calculateDistance(_userLocation!, marker.point);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestStopPoint = marker.point;
+      }
+    }
+
+    if (minDistance == double.infinity) {
+      setState(() {
+        _arrivalTime = 'No stops found';
+        _nearestStopName = null;
+      });
+      return;
+    }
+
+    final busToStopDistance = calculateDistance(
+      _bus!.location!,
+      nearestStopPoint,
+    );
+
+    // Assume an average bus speed (e.g., 30 km/h). Adjust as needed.
+    const averageSpeedKmH = 30.0;
+    final averageSpeedKmMin = averageSpeedKmH / 60.0;
+
+    // Distance is in meters, convert to kilometers.
+    final distanceKm = busToStopDistance / 1000;
+
+    // Calculate time in minutes.
+    final timeInMinutes = distanceKm / averageSpeedKmMin;
+
+    // Format the time for display.
+    final formattedTime =
+        timeInMinutes.ceil() > 0
+            ? '${timeInMinutes.ceil()} minutes'
+            : 'Less than a minute';
+
+    setState(() {
+      _arrivalTime = formattedTime;
+    });
+    print('Estimated arrival time: $_arrivalTime');
+    _calculateNearestStop(); // Call calculateNearestStop here as well
+  }
+
+  Future<void> _calculateNearestStop() async {
+    if (_userLocation == null || _stopsData.isEmpty) {
+      setState(() {
+        _nearestStopName = null;
+      });
+      return;
+    }
+
+    LatLng nearestStopPoint = LatLng(0, 0);
+    double minDistance = double.infinity;
+    String? nearestStop;
+
+    for (var stopData in _stopsData) {
+      final lat = stopData['latitude'];
+      final lng = stopData['longitude'];
+      final stopName = stopData['stopName']?.toString();
+
+      if (lat is num && lng is num) {
+        final stopLatLng = LatLng(lat.toDouble(), lng.toDouble());
+        final distance = calculateDistance(_userLocation!, stopLatLng);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestStopPoint = stopLatLng;
+          nearestStop = stopName;
+        }
+      }
+    }
+
+    setState(() {
+      _nearestStopName = nearestStop;
+    });
+    print('Nearest stop: $_nearestStopName');
+  }
+
+  // Helper function to calculate distance between two LatLng points (in meters)
+  double calculateDistance(LatLng point1, LatLng point2) {
+    const R = 6371e3; // Earth's radius in meters
+    final lat1 = point1.latitude * pi / 180;
+    final lon1 = point1.longitude * pi / 180;
+    final lat2 = point2.latitude * pi / 180;
+    final lon2 = point2.longitude * pi / 180;
+
+    final dLat = lat2 - lat1;
+    final dLon = lon2 - lon1;
+
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return R * c;
   }
 
   @override
@@ -511,6 +704,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('  _startPoint: $_startPoint');
     print('  _destinationPoint: $_destinationPoint');
     print('  _stopsData.isNotEmpty: ${_stopsData.isNotEmpty}');
+    print(
+      'Number of route polylines in build: ${_routePolylines.length}',
+    ); // Log polylines in build
 
     Widget appBarTitleWidget;
     if (_startPoint != null && _destinationPoint != null) {
@@ -533,7 +729,6 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     }
 
     return Stack(
-      // Removed Scaffold and AppBar
       children: [
         FlutterMap(
           mapController: _mapController,
@@ -593,28 +788,33 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         Positioned(
           bottom: 16,
           right: 16,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (_bus?.location != null && !_isLoading)
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _autoCenterEnabled = true;
-                      if (_bus?.location != null) {
-                        _mapController.move(
-                          _bus!.location!,
-                          _mapController.camera.zoom,
-                        );
-                      }
-                    });
-                  },
-                  child: CenterBusButton(
-                    mapController: _mapController,
-                    busLocation: _bus?.location,
-                  ),
-                ),
-            ],
+          child:
+              _bus?.location != null && !_isLoading
+                  ? GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _autoCenterEnabled = true;
+                        if (_bus?.location != null) {
+                          _mapController.move(
+                            _bus!.location!,
+                            _mapController.camera.zoom,
+                          );
+                        }
+                      });
+                    },
+                    child: CenterBusButton(
+                      mapController: _mapController,
+                      busLocation: _bus?.location,
+                    ),
+                  )
+                  : const SizedBox.shrink(),
+        ),
+        Positioned(
+          top: 16,
+          right: 0,
+          child: DataDisplayWidget(
+            arrivalTime: _arrivalTime,
+            nearestStopName: _nearestStopName,
           ),
         ),
       ],
