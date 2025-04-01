@@ -4,6 +4,26 @@ import 'package:anavandi_locator/presentation/screens/home_content.dart';
 import 'package:anavandi_locator/presentation/screens/home/home_submit_handler.dart';
 import 'package:anavandi_locator/data/models/bus_route.dart';
 import 'package:sliding_clipped_nav_bar/sliding_clipped_nav_bar.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
+import 'dart:io' show Platform;
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Anavandi Locator',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const HomePage(),
+    );
+  }
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,7 +38,123 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _textField1Controller = TextEditingController();
   final TextEditingController _textField2Controller = TextEditingController();
   final GlobalKey<HomeContentState> _homeContentKey =
-      GlobalKey<HomeContentState>(); // Using the public HomeContentState
+      GlobalKey<HomeContentState>();
+
+  // Method channel for opening location settings
+  static const MethodChannel _channel = MethodChannel(
+    'com.example.anavandi_locator/location_settings',
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLocationPermission();
+  }
+
+  Future<void> _checkLocationPermission() async {
+    PermissionStatus status = await Permission.location.status;
+    if (status.isDenied) {
+      status = await Permission.location.request();
+      if (status.isGranted) {
+        print('Location permission granted.');
+        _checkLocationService();
+      } else if (status.isPermanentlyDenied) {
+        _showPermissionDeniedDialog();
+      } else {
+        print('Location permission denied.');
+      }
+    } else if (status.isGranted) {
+      print('Location permission already granted.');
+      _checkLocationService();
+    } else if (status.isPermanentlyDenied) {
+      _showPermissionDeniedDialog();
+    } else if (status.isLimited) {
+      print('Location permission is limited (iOS).');
+      _checkLocationService();
+    }
+  }
+
+  Future<void> _checkLocationService() async {
+    bool serviceEnabled = await Permission.location.serviceStatus.isEnabled;
+    if (!serviceEnabled) {
+      _showLocationServiceDisabledDialog();
+    } else {
+      print('Location service is enabled.');
+    }
+  }
+
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Location Permission Required'),
+          content: const Text(
+            'This app needs location permission to find bus routes near you. Please grant the permission in the app settings.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Open Settings'),
+              onPressed: () {
+                openAppSettings();
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showLocationServiceDisabledDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Location Service Disabled'),
+          content: const Text(
+            'Your device\'s location service is turned off. Please turn it on to use the location-based features of this app.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Open Location Settings'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _openLocationSettings();
+              },
+            ),
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openLocationSettings() async {
+    try {
+      await _channel.invokeMethod('openLocationSettings');
+    } on PlatformException catch (e) {
+      print("Error opening location settings: '${e.message}'");
+      // Show a user-friendly error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open location settings: ${e.message}'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -38,10 +174,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleRouteFound(List<BusRoute> route) {
-    // This callback will be passed to HomeContent
-    _homeContentKey.currentState?.updateRoute(
-      route,
-    ); // Access the state using the GlobalKey
+    _homeContentKey.currentState?.updateRoute(route);
   }
 
   @override
@@ -53,21 +186,14 @@ class _HomePageState extends State<HomePage> {
       child: Scaffold(
         appBar: AppBar(
           title: AnimatedSwitcher(
-            duration: const Duration(
-              milliseconds: 300,
-            ), // Adjust the duration as needed
+            duration: const Duration(milliseconds: 300),
             transitionBuilder: (Widget child, Animation<double> animation) {
               return FadeTransition(opacity: animation, child: child);
             },
             child:
                 _selectedIndex == 0
-                    ? const Text(
-                      'Anavandi Locator',
-                      key: ValueKey<int>(0),
-                    ) // Key for Home title
-                    : const SizedBox.shrink(
-                      key: ValueKey<int>(1),
-                    ), // Key for About (no title)
+                    ? const Text('Anavandi Locator', key: ValueKey<int>(0))
+                    : const SizedBox.shrink(key: ValueKey<int>(1)),
           ),
         ),
         body: PageView(
@@ -75,16 +201,16 @@ class _HomePageState extends State<HomePage> {
           onPageChanged: _onPageChanged,
           children: <Widget>[
             HomeContent(
-              key: _homeContentKey, // Assign the GlobalKey to HomeContent
+              key: _homeContentKey,
               startPointController: _textField1Controller,
               destinationController: _textField2Controller,
-              onRouteFound: _handleRouteFound, // Pass the callback
+              onRouteFound: _handleRouteFound,
               onSubmit: () {
                 HomeSubmitHandler.handleSubmit(
                   context,
                   _textField1Controller,
                   _textField2Controller,
-                  _handleRouteFound, // Pass the callback to handleSubmit
+                  _handleRouteFound,
                 );
               },
             ),
@@ -103,5 +229,13 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _textField1Controller.dispose();
+    _textField2Controller.dispose();
+    _pageController.dispose();
+    super.dispose();
   }
 }
