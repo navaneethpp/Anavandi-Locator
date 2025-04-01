@@ -5,7 +5,7 @@ import 'package:anavandi_locator/presentation/screens/route_details_screen.dart'
 import 'package:anavandi_locator/data/models/bus_model.dart';
 import 'package:anavandi_locator/services/bus_route_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:anavandi_locator/presentation/screens/trip_details_screen.dart';
 
 class BusRouteContainerScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -74,11 +74,23 @@ class _BusRouteContainerScreenState extends State<BusRouteContainerScreen> {
     } else if (_selectedIndex == 1) {
       // For RouteDetailsScreen, we can simply re-fetch the data
       _fetchInitialData();
+    } else if (_selectedIndex == 2) {
+      // Optionally refresh the trip details if needed
+      setState(() {}); // Trigger a rebuild of the TripDetailsScreen
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final busLocationStream = Stream.periodic(const Duration(seconds: 5), (
+      _,
+    ) async {
+      final fetchedBus = await BusRouteService.fetchBusLocation(
+        widget.busRegistrationNumber,
+      );
+      return fetchedBus?.location;
+    }).asyncMap((event) async => await event).takeWhile((value) => mounted);
+
     final List<Widget> _widgetOptions = <Widget>[
       BusRouteMapScreen(
         key: _mapScreenKey,
@@ -90,15 +102,13 @@ class _BusRouteContainerScreenState extends State<BusRouteContainerScreen> {
         startPoint: _startPoint ?? '',
         destinationPoint: _destinationPoint ?? '',
         initialBusLocation: _bus?.location,
-        busLocationStream: Stream.periodic(const Duration(seconds: 5), (
-          _,
-        ) async {
-          final fetchedBus = await BusRouteService.fetchBusLocation(
-            widget.busRegistrationNumber,
-          );
-          return fetchedBus?.location;
-        }).asyncMap((event) async => await event).takeWhile((value) => mounted),
+        busLocationStream: busLocationStream,
       ),
+      TripDetailsScreen(
+        tripId: widget.tripId,
+        busLocationStream: busLocationStream, // Pass the stream
+        stopsData: _stopsData, // Pass the stops data
+      ), // Add the new screen
     ];
 
     return Scaffold(
@@ -110,10 +120,13 @@ class _BusRouteContainerScreenState extends State<BusRouteContainerScreen> {
               _startPoint != null && _destinationPoint != null
                   ? '$_startPoint - $_destinationPoint'
                   : 'Route Not Available',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
-            Text(widget.busRegistrationNumber, style: TextStyle(fontSize: 14)),
+            Text(
+              widget.busRegistrationNumber,
+              style: const TextStyle(fontSize: 14),
+            ),
           ],
         ),
         centerTitle: true,
@@ -125,18 +138,16 @@ class _BusRouteContainerScreenState extends State<BusRouteContainerScreen> {
         ],
       ),
       body: IndexedStack(index: _selectedIndex, children: _widgetOptions),
-      bottomNavigationBar: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20.0)),
-        child: SlidingClippedNavBar(
-          backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-          onButtonPressed: (index) => _onItemTapped(index),
-          activeColor: Colors.blue,
-          selectedIndex: _selectedIndex,
-          barItems: <BarItem>[
-            BarItem(icon: Icons.map, title: 'Map'),
-            BarItem(icon: Icons.list, title: 'Stops'),
-          ],
-        ),
+      bottomNavigationBar: SlidingClippedNavBar(
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        onButtonPressed: (index) => _onItemTapped(index),
+        activeColor: Colors.blue,
+        selectedIndex: _selectedIndex,
+        barItems: <BarItem>[
+          BarItem(icon: Icons.map, title: 'Map'),
+          BarItem(icon: Icons.list, title: 'Stops'),
+          BarItem(icon: Icons.info, title: 'Details'), // Added the third item
+        ],
       ),
     );
   }
