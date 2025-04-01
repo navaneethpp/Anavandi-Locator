@@ -12,6 +12,7 @@ import 'package:anavandi_locator/utils/utils.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/presentation/widgets/refresh_button.dart';
+import 'package:geolocator/geolocator.dart'; // Import geolocator package
 
 class BusRouteMapScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -42,12 +43,14 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
   String? _destinationPoint;
   List<Map<String, dynamic>> _stopsData = []; // To store fetched stops data
   bool _autoCenterEnabled = true; // New state variable
+  LatLng? _userLocation; // New state variable for user location
 
   @override
   void initState() {
     super.initState();
     print('BusRouteMapScreen initState called');
     _initializeData();
+    _getCurrentUserLocation(); // Call to get user's location
   }
 
   @override
@@ -82,7 +85,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     _destinationPoint = null;
     _stopsData.clear();
     _autoCenterEnabled = true; // Reset auto-center on re-initialize
+    _userLocation = null; // Reset user location
     _initializeData();
+    _getCurrentUserLocation(); // Re-fetch user location
   }
 
   void _initializeData() async {
@@ -439,6 +444,66 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     }
   }
 
+  Future<void> _getCurrentUserLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _errorMessage =
+              'Location services are disabled. Please enable them in your device settings.';
+        });
+      }
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted && !_isDisposed) {
+          setState(() {
+            _errorMessage =
+                'Location permissions are denied. Please grant them to use this feature.';
+          });
+        }
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _errorMessage =
+              'Location permissions are permanently denied. Please enable them in your app settings.';
+        });
+      }
+      return;
+    }
+
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _userLocation = LatLng(position.latitude, position.longitude);
+        });
+        print('User location: $_userLocation');
+      }
+    } catch (e) {
+      print('Error getting user location: $e');
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _errorMessage = 'Failed to get user location: $e';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     print('Checking conditions for More Info button:');
@@ -502,6 +567,17 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
                     ),
                   ),
                 ..._stopMarkers,
+                if (_userLocation != null) // Add user location marker
+                  Marker(
+                    point: _userLocation!,
+                    width: 20,
+                    height: 20,
+                    child: const Icon(
+                      Icons.person_pin_circle,
+                      color: Colors.green,
+                      size: 30,
+                    ),
+                  ),
               ],
             ),
             PolylineLayer(polylines: _routePolylines),

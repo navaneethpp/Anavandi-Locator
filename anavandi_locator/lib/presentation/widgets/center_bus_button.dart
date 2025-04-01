@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_svg/svg.dart';
 
 class CenterBusButton extends StatelessWidget {
   final MapController mapController;
@@ -24,7 +25,12 @@ class CenterBusButton extends StatelessWidget {
           );
         }
       },
-      child: const Icon(Icons.my_location),
+      child: SvgPicture.asset(
+        'assets/icon/recenter.svg',
+        color: Colors.indigo,
+        width: 30,
+        height: 30,
+      ),
     );
   }
 }
