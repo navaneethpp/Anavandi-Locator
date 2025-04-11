@@ -16,6 +16,7 @@ class CenterBusButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton(
+      backgroundColor: Colors.blueAccent,
       onPressed: () {
         if (busLocation != null) {
           mapController.move(busLocation!, 16.0);
@@ -27,7 +28,7 @@ class CenterBusButton extends StatelessWidget {
       },
       child: SvgPicture.asset(
         'assets/icon/recenter.svg',
-        color: Colors.indigo,
+        color: Colors.white,
         width: 30,
         height: 30,
       ),
