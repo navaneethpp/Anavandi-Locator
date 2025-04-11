@@ -1,3 +1,4 @@
+// bus_route_container_screen.dart
 import 'package:sliding_clipped_nav_bar/sliding_clipped_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:anavandi_locator/presentation/screens/bus_route_map_screen.dart';
@@ -6,6 +7,7 @@ import 'package:anavandi_locator/data/models/bus_model.dart';
 import 'package:anavandi_locator/services/bus_route_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/presentation/screens/trip_details_screen.dart';
+import 'package:anavandi_locator/presentation/widgets/custom_bottom_nav_bar.dart'; // Import the new widget
 
 class BusRouteContainerScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -29,7 +31,6 @@ class _BusRouteContainerScreenState extends State<BusRouteContainerScreen> {
   String? _startPoint;
   String? _destinationPoint;
 
-  // GlobalKey to access the state of the child screens
   final GlobalKey<BusRouteMapScreenState> _mapScreenKey = GlobalKey();
 
   @override
@@ -138,7 +139,7 @@ class _BusRouteContainerScreenState extends State<BusRouteContainerScreen> {
         ],
       ),
       body: IndexedStack(index: _selectedIndex, children: _widgetOptions),
-      bottomNavigationBar: SlidingClippedNavBar(
+      bottomNavigationBar: CustomBottomNavBar(
         backgroundColor: const Color.fromARGB(255, 255, 255, 255),
         onButtonPressed: (index) => _onItemTapped(index),
         activeColor: Colors.blue,
@@ -146,7 +147,7 @@ class _BusRouteContainerScreenState extends State<BusRouteContainerScreen> {
         barItems: <BarItem>[
           BarItem(icon: Icons.map, title: 'Map'),
           BarItem(icon: Icons.list, title: 'Stops'),
-          BarItem(icon: Icons.info, title: 'Details'), // Added the third item
+          BarItem(icon: Icons.info, title: 'Details'),
         ],
       ),
     );

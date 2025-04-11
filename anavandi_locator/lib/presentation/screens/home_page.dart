@@ -1,3 +1,4 @@
+// home_page.dart
 import 'package:flutter/material.dart';
 import 'package:anavandi_locator/presentation/screens/about_page.dart';
 import 'package:anavandi_locator/presentation/screens/home_content.dart';
@@ -7,6 +8,7 @@ import 'package:sliding_clipped_nav_bar/sliding_clipped_nav_bar.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
+import 'package:anavandi_locator/presentation/widgets/custom_bottom_nav_bar.dart'; // Import the new widget
 
 void main() {
   runApp(const MyApp());
@@ -40,7 +42,6 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey<HomeContentState> _homeContentKey =
       GlobalKey<HomeContentState>();
 
-  // Method channel for opening location settings
   static const MethodChannel _channel = MethodChannel(
     'com.example.anavandi_locator/location_settings',
   );
@@ -217,11 +218,10 @@ class _HomePageState extends State<HomePage> {
             const AboutPage(),
           ],
         ),
-        bottomNavigationBar: SlidingClippedNavBar(
-          backgroundColor: Colors.transparent,
+        bottomNavigationBar: CustomBottomNavBar(
+          selectedIndex: _selectedIndex,
           onButtonPressed: _onItemTapped,
           activeColor: Theme.of(context).primaryColor,
-          selectedIndex: _selectedIndex,
           barItems: <BarItem>[
             BarItem(icon: Icons.home, title: 'Home'),
             BarItem(icon: Icons.info, title: 'About'),
