@@ -7,7 +7,7 @@ import 'package:anavandi_locator/data/models/bus_model.dart';
 import 'package:anavandi_locator/services/bus_route_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:anavandi_locator/presentation/screens/trip_details_screen.dart';
-import 'package:anavandi_locator/presentation/widgets/custom_bottom_nav_bar.dart'; // Import the new widget
+import 'package:anavandi_locator/presentation/widgets/custom_bottom_nav_bar.dart';
 
 class BusRouteContainerScreen extends StatefulWidget {
   final String busRegistrationNumber;

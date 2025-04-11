@@ -11,50 +11,9 @@ import 'package:anavandi_locator/presentation/widgets/no_stops_warning.dart';
 import 'package:anavandi_locator/utils/utils.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:anavandi_locator/presentation/widgets/refresh_button.dart';
-import 'package:geolocator/geolocator.dart'; // Import geolocator package
-import 'package:flutter_svg/flutter_svg.dart'; // Import flutter_svg
-import 'package:anavandi_locator/presentation/widgets/data_display_widget.dart'; // Import the new widget
+import 'package:geolocator/geolocator.dart';
+import 'package:anavandi_locator/presentation/widgets/data_display_widget.dart';
 import 'dart:math';
-
-class CenterBusButton extends StatelessWidget {
-  final MapController mapController;
-  final LatLng? busLocation;
-
-  const CenterBusButton({
-    super.key,
-    required this.mapController,
-    this.busLocation,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () {
-        if (busLocation != null) {
-          mapController.move(busLocation!, 16.0);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bus location not available yet.')),
-          );
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SvgPicture.asset(
-          'assets/icon/recenter.svg', // Path to your SVG asset
-          width: 24, // Adjust width as needed
-          height: 24, // Adjust height as needed
-          colorFilter: ColorFilter.mode(
-            Theme.of(context).colorScheme.onSecondaryContainer,
-            BlendMode.srcIn,
-          ), // Optional: Apply color to the SVG
-        ),
-      ),
-      backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-    );
-  }
-}
 
 class BusRouteMapScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -83,11 +42,11 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
   bool _isDisposed = false;
   String? _startPoint;
   String? _destinationPoint;
-  List<Map<String, dynamic>> _stopsData = []; // To store fetched stops data
-  bool _autoCenterEnabled = true; // New state variable
-  LatLng? _userLocation; // New state variable for user location
-  String? _arrivalTime; // To store the estimated arrival time
-  String? _nearestStopName; // New state variable for the nearest stop name
+  List<Map<String, dynamic>> _stopsData = [];
+  bool _autoCenterEnabled = true;
+  LatLng? _userLocation;
+  String? _arrivalTime;
+  String? _nearestStopName;
 
   @override
   void initState() {
@@ -95,10 +54,10 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('BusRouteMapScreen initState called');
     _initializeData();
     _calculateArrivalTime();
-    _calculateNearestStop(); // Call the new method here
+    _calculateNearestStop();
     _getCurrentUserLocation();
     _calculateArrivalTime();
-    _calculateNearestStop(); // Call the new method here
+    _calculateNearestStop();
   }
 
   @override
@@ -107,7 +66,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('BusRouteMapScreen didUpdateWidget called');
     if (oldWidget.busRegistrationNumber != widget.busRegistrationNumber ||
         oldWidget.tripId != widget.tripId) {
-      resetStateAndInitialize(); // Calling the now public method
+      resetStateAndInitialize();
     } else {
       if (_locationUpdateTimer?.isActive == false ||
           _locationUpdateTimer == null) {
@@ -120,7 +79,6 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
   }
 
   void resetStateAndInitialize() {
-    // Removed the underscore here
     print('BusRouteMapScreen _resetStateAndInitialize called');
     _bus = null;
     _stopMarkers.clear();
@@ -132,12 +90,12 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     _startPoint = null;
     _destinationPoint = null;
     _stopsData.clear();
-    _autoCenterEnabled = true; // Reset auto-center on re-initialize
-    _userLocation = null; // Reset user location
-    _arrivalTime = null; // Reset arrival time
-    _nearestStopName = null; // Reset nearest stop name
+    _autoCenterEnabled = true;
+    _userLocation = null;
+    _arrivalTime = null;
+    _nearestStopName = null;
     _initializeData();
-    _getCurrentUserLocation(); // Re-fetch user location
+    _getCurrentUserLocation();
   }
 
   void _initializeData() async {
@@ -151,9 +109,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         _startPoint = null;
         _destinationPoint = null;
         _stopsData.clear();
-        _autoCenterEnabled = true; // Enable auto-center initially
-        _arrivalTime = null; // Reset arrival time on new data load
-        _nearestStopName = null; // Reset nearest stop name on new data load
+        _autoCenterEnabled = true;
+        _arrivalTime = null;
+        _nearestStopName = null;
       });
 
       print('Fetching bus location for ${widget.busRegistrationNumber}');
@@ -362,7 +320,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
           setState(() {
             _showNoStopsWarning = true;
             _arrivalTime = 'No stops data';
-            _nearestStopName = null; // Reset nearest stop name if no stops data
+            _nearestStopName = null;
           });
           print(
             'Warning: Could not fetch bus stops data for tripId: $_bus!.tripId',
@@ -372,8 +330,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         setState(() {
           _errorMessage = 'Could not find trip information for this bus';
           _arrivalTime = 'Trip info missing';
-          _nearestStopName =
-              null; // Reset nearest stop name if trip info is missing
+          _nearestStopName = null;
         });
         print(
           'Error: Could not find trip information for bus ${widget.busRegistrationNumber}',
@@ -385,7 +342,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         setState(() {
           _errorMessage = 'Failed to load bus data: $e';
           _arrivalTime = 'Load failed';
-          _nearestStopName = null; // Reset nearest stop name on load failure
+          _nearestStopName = null;
         });
       }
     } finally {
@@ -433,7 +390,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
             }
           }
         });
-        _calculateArrivalTime(); // Calculate arrival time on location update
+        _calculateArrivalTime();
       }
     });
   }
@@ -571,8 +528,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
           _userLocation = LatLng(position.latitude, position.longitude);
         });
         print('User location: $_userLocation');
-        _calculateArrivalTime(); // Calculate arrival time after getting user location
-        _calculateNearestStop(); // Calculate nearest stop after getting user location
+        _calculateArrivalTime();
+        _calculateNearestStop();
       }
     } catch (e) {
       print('Error getting user location: $e');
@@ -591,7 +548,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         _bus?.location == null ||
         _stopMarkers.isEmpty) {
       setState(() {
-        _arrivalTime = null; // Or a message like "Location data not available"
+        _arrivalTime = null;
         _nearestStopName = null;
       });
       return;
@@ -621,17 +578,10 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       nearestStopPoint,
     );
 
-    // Assume an average bus speed (e.g., 30 km/h). Adjust as needed.
     const averageSpeedKmH = 30.0;
     final averageSpeedKmMin = averageSpeedKmH / 60.0;
-
-    // Distance is in meters, convert to kilometers.
     final distanceKm = busToStopDistance / 1000;
-
-    // Calculate time in minutes.
     final timeInMinutes = distanceKm / averageSpeedKmMin;
-
-    // Format the time for display.
     final formattedTime =
         timeInMinutes.ceil() > 0
             ? '${timeInMinutes.ceil()} minutes'
@@ -641,7 +591,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       _arrivalTime = formattedTime;
     });
     print('Estimated arrival time: $_arrivalTime');
-    _calculateNearestStop(); // Call calculateNearestStop here as well
+    _calculateNearestStop();
   }
 
   Future<void> _calculateNearestStop() async {
@@ -678,9 +628,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('Nearest stop: $_nearestStopName');
   }
 
-  // Helper function to calculate distance between two LatLng points (in meters)
   double calculateDistance(LatLng point1, LatLng point2) {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     final lat1 = point1.latitude * pi / 180;
     final lon1 = point1.longitude * pi / 180;
     final lat2 = point2.latitude * pi / 180;
@@ -704,9 +653,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('  _startPoint: $_startPoint');
     print('  _destinationPoint: $_destinationPoint');
     print('  _stopsData.isNotEmpty: ${_stopsData.isNotEmpty}');
-    print(
-      'Number of route polylines in build: ${_routePolylines.length}',
-    ); // Log polylines in build
+    print('Number of route polylines in build: ${_routePolylines.length}');
 
     Widget appBarTitleWidget;
     if (_startPoint != null && _destinationPoint != null) {
@@ -728,96 +675,87 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       appBarTitleWidget = Text('Route for ${widget.busRegistrationNumber}');
     }
 
-    return Stack(
-      children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: _bus?.location ?? LatLng(0, 0),
-            initialZoom: 16,
-            onPositionChanged: (position, hasGesture) {
-              if (hasGesture) {
-                setState(() {
-                  _autoCenterEnabled = false;
-                });
-              }
-            },
+    return Scaffold(
+      // Wrapped with Scaffold to use AppBar
+      body: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _bus?.location ?? LatLng(0, 0),
+              initialZoom: 16,
+              onPositionChanged: (position, hasGesture) {
+                if (hasGesture) {
+                  setState(() {
+                    _autoCenterEnabled = false;
+                  });
+                }
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.app',
+              ),
+              MarkerLayer(
+                markers: [
+                  if (_bus?.location != null)
+                    Marker(
+                      point: _bus!.location!,
+                      width: 20,
+                      height: 20,
+                      child: const Icon(
+                        Icons.directions_bus,
+                        color: Colors.blue,
+                        size: 30,
+                      ),
+                    ),
+                  ..._stopMarkers,
+                  if (_userLocation != null)
+                    Marker(
+                      point: _userLocation!,
+                      width: 20,
+                      height: 20,
+                      child: const Icon(
+                        Icons.person_pin_circle,
+                        color: Colors.green,
+                        size: 30,
+                      ),
+                    ),
+                ],
+              ),
+              PolylineLayer(polylines: _routePolylines),
+            ],
           ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.app',
-            ),
-            MarkerLayer(
-              markers: [
-                if (_bus?.location != null)
-                  Marker(
-                    point: _bus!.location!,
-                    width: 20,
-                    height: 20,
-                    child: const Icon(
-                      Icons.directions_bus,
-                      color: Colors.blue,
-                      size: 30,
-                    ),
-                  ),
-                ..._stopMarkers,
-                if (_userLocation != null) // Add user location marker
-                  Marker(
-                    point: _userLocation!,
-                    width: 20,
-                    height: 20,
-                    child: const Icon(
-                      Icons.person_pin_circle,
-                      color: Colors.green,
-                      size: 30,
-                    ),
-                  ),
-              ],
-            ),
-            PolylineLayer(polylines: _routePolylines),
-          ],
-        ),
-        if (_isLoading || _isLoadingRoute) const LoadingIndicator(),
-        if (_errorMessage != null) ErrorMessageWidget(message: _errorMessage!),
-        if (_showNoStopsWarning &&
-            !_isLoading &&
-            !_isLoadingRoute &&
-            _errorMessage == null)
-          const NoStopsWarning(),
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child:
-              _bus?.location != null && !_isLoading
-                  ? GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _autoCenterEnabled = true;
-                        if (_bus?.location != null) {
-                          _mapController.move(
-                            _bus!.location!,
-                            _mapController.camera.zoom,
-                          );
-                        }
-                      });
-                    },
-                    child: CenterBusButton(
+          if (_isLoading || _isLoadingRoute) const LoadingIndicator(),
+          if (_errorMessage != null)
+            ErrorMessageWidget(message: _errorMessage!),
+          if (_showNoStopsWarning &&
+              !_isLoading &&
+              !_isLoadingRoute &&
+              _errorMessage == null)
+            const NoStopsWarning(),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child:
+                _bus?.location != null && !_isLoading
+                    ? CenterBusButton(
                       mapController: _mapController,
                       busLocation: _bus?.location,
-                    ),
-                  )
-                  : const SizedBox.shrink(),
-        ),
-        Positioned(
-          top: 16,
-          right: 0,
-          child: DataDisplayWidget(
-            arrivalTime: _arrivalTime,
-            nearestStopName: _nearestStopName,
+                    )
+                    : const SizedBox.shrink(),
           ),
-        ),
-      ],
+          Positioned(
+            top: 16,
+            right: 0,
+            child: DataDisplayWidget(
+              arrivalTime: _arrivalTime,
+              nearestStopName: _nearestStopName,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
