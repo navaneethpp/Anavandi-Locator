@@ -9,7 +9,7 @@ class App extends StatelessWidget {
     return MaterialApp(
       title: 'Anavandi Locator',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const HomePage(),
+      home: SafeArea(child: const HomePage()),
       debugShowCheckedModeBanner: false, // Removed the debugging badge
     );
   }

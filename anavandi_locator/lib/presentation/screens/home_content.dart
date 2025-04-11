@@ -7,7 +7,7 @@ import 'package:anavandi_locator/presentation/widgets/place_suggestion_list.dart
 import 'package:anavandi_locator/data/models/bus_route.dart';
 import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
 import 'package:anavandi_locator/common/widgets/swap_button.dart';
-import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart'; // Import the loading indicator
+import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart';
 import 'dart:async';
 
 class HomeContent extends StatefulWidget {
