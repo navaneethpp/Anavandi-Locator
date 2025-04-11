@@ -723,6 +723,14 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
               ),
             ],
           ),
+          Positioned(
+            left: 8,
+            bottom: 8,
+            child: Text(
+              "OpenStreetMapContributes",
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ),
           if (_isLoading || _isLoadingRoute) const LoadingIndicator(),
           if (_errorMessage != null)
             ErrorMessageWidget(message: _errorMessage!),
