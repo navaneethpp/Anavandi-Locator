@@ -9,6 +9,7 @@ import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart';
 import 'package:anavandi_locator/presentation/widgets/error_message_widget.dart';
 import 'package:anavandi_locator/presentation/widgets/no_stops_warning.dart';
 import 'package:anavandi_locator/utils/utils.dart';
+import 'package:anavandi_locator/presentation/widgets/map_layers.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
@@ -675,8 +676,24 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       appBarTitleWidget = Text('Route for ${widget.busRegistrationNumber}');
     }
 
+    // Prepare user location marker
+    List<Marker> userLocationMarkers = [];
+    if (_userLocation != null) {
+      userLocationMarkers.add(
+        Marker(
+          point: _userLocation!,
+          width: 20,
+          height: 20,
+          child: const Icon(
+            Icons.person_pin_circle,
+            color: Colors.green,
+            size: 30,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      // Wrapped with Scaffold to use AppBar
       body: Stack(
         children: [
           FlutterMap(
@@ -697,34 +714,13 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.app',
               ),
-              MarkerLayer(
-                markers: [
-                  if (_bus?.location != null)
-                    Marker(
-                      point: _bus!.location!,
-                      width: 20,
-                      height: 20,
-                      child: const Icon(
-                        Icons.directions_bus,
-                        color: Colors.blue,
-                        size: 30,
-                      ),
-                    ),
-                  ..._stopMarkers,
-                  if (_userLocation != null)
-                    Marker(
-                      point: _userLocation!,
-                      width: 20,
-                      height: 20,
-                      child: const Icon(
-                        Icons.person_pin_circle,
-                        color: Colors.green,
-                        size: 30,
-                      ),
-                    ),
-                ],
+              // Use the MapLayers widget here
+              MapLayers(
+                bus: _bus,
+                stopMarkers: _stopMarkers,
+                routePolylines: _routePolylines,
+                userLocation: _userLocation,
               ),
-              PolylineLayer(polylines: _routePolylines),
             ],
           ),
           if (_isLoading || _isLoadingRoute) const LoadingIndicator(),

@@ -4,15 +4,18 @@ import 'package:latlong2/latlong.dart';
 import 'package:anavandi_locator/data/models/bus_model.dart';
 import 'package:anavandi_locator/utils/utils.dart';
 
-class _MapLayers extends StatelessWidget {
+class MapLayers extends StatelessWidget {
   final Bus? bus;
   final List<Marker> stopMarkers;
   final List<Polyline> routePolylines;
+  final LatLng? userLocation;
 
-  const _MapLayers({
+  const MapLayers({
+    super.key,
     this.bus,
     required this.stopMarkers,
     required this.routePolylines,
+    this.userLocation,
   });
 
   @override
@@ -40,6 +43,21 @@ class _MapLayers extends StatelessWidget {
             ],
           ),
         MarkerLayer(markers: stopMarkers),
+        if (userLocation != null)
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: userLocation!,
+                width: 20,
+                height: 20,
+                child: const Icon(
+                  Icons.person_pin_circle,
+                  color: Colors.green,
+                  size: 30,
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
