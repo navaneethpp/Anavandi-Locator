@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:anavandi_locator/utils/version.dart';
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
@@ -6,7 +7,7 @@ class AboutPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.end, // Changed this line
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Expanded(
           // Wrapped the image with Expanded
@@ -24,9 +25,9 @@ class AboutPage extends StatelessWidget {
             ],
           ),
         ),
-        const Center(
+        Center(
           child: Text(
-            'Version: 0.2.9.8 alpha',
+            'Version: ${Version.currentVersion}',
             style: TextStyle(color: Colors.grey),
           ),
         ),
