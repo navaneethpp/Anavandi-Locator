@@ -9,6 +9,7 @@ import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
 import 'package:anavandi_locator/common/widgets/swap_button.dart';
 import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart';
 import 'dart:async';
+import 'package:anavandi_locator/presentation/widgets/filter_dialog.dart';
 
 class HomeContent extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -39,9 +40,13 @@ class HomeContentState extends State<HomeContent> {
   final LayerLink _startPointLayerLink = LayerLink();
   final LayerLink _destinationLayerLink = LayerLink();
   List<BusRoute> _routes = [];
+  List<BusRoute> _filteredRoutes = []; // To store filtered routes
   bool _hasSearched = false;
   Timer? _noRouteTimer;
-  bool _isLoading = false; // Add a loading state variable
+  bool _isLoading = false;
+
+  // Filter options
+  bool _showOnlyArrivingBuses = false;
 
   void _onStartPointChanged(String value) async {
     if (value.isEmpty) {
@@ -161,12 +166,12 @@ class HomeContentState extends State<HomeContent> {
   void updateRoute(List<BusRoute> routes) {
     setState(() {
       _routes = routes;
-      _isLoading = false; // Set loading to false when routes are received
+      _applyFilters(); // Apply filters when routes are updated
+      _isLoading = false;
       if (_routes.isNotEmpty) {
         _hasSearched = true;
-        _noRouteTimer?.cancel(); // Cancel any existing timer
+        _noRouteTimer?.cancel();
       } else if (_hasSearched) {
-        // Start a timer to potentially hide the message
         _noRouteTimer = Timer(const Duration(seconds: 10), () {
           if (mounted && _routes.isEmpty) {
             setState(() {
@@ -176,6 +181,43 @@ class HomeContentState extends State<HomeContent> {
         });
       }
     });
+  }
+
+  // Apply filters based on the current filter selections
+  void _applyFilters() {
+    if (_showOnlyArrivingBuses) {
+      final startPoint = widget.startPointController.text.toLowerCase();
+      _filteredRoutes =
+          _routes.where((route) {
+            // Check if any bus stop (except the first one) matches the starting point
+            for (int i = 1; i < route.busStops.length; i++) {
+              if (route.busStops[i].stopName.toLowerCase() == startPoint) {
+                return true;
+              }
+            }
+            return false;
+          }).toList();
+    } else {
+      _filteredRoutes = List.from(_routes);
+    }
+  }
+
+  // Show filter dialog
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return FilterDialog(
+          showOnlyArrivingBuses: _showOnlyArrivingBuses,
+          onShowOnlyArrivingBusesChanged: (value) {
+            setState(() {
+              _showOnlyArrivingBuses = value;
+              _applyFilters();
+            });
+          },
+        );
+      },
+    );
   }
 
   void _swapTextFields() {
@@ -208,7 +250,6 @@ class HomeContentState extends State<HomeContent> {
       },
       behavior: HitTestBehavior.translucent,
       child: Stack(
-        // Wrap the Padding with a Stack
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -249,25 +290,59 @@ class HomeContentState extends State<HomeContent> {
                   onPressed: () {
                     setState(() {
                       _hasSearched = true;
-                      _isLoading =
-                          true; // Set loading to true when button is pressed
+                      _isLoading = true;
                     });
                     widget.onSubmit();
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // Filter section and results
                 if (_routes.isNotEmpty)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Results: ${_filteredRoutes.length}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.filter_list, size: 18),
+                        label: const Text('Filter'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          textStyle: const TextStyle(fontSize: 14),
+                        ),
+                        onPressed: _showFilterDialog,
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 8),
+
+                if (_filteredRoutes.isNotEmpty)
                   Expanded(
                     child: ListView.builder(
                       shrinkWrap: true,
-                      itemCount: _routes.length,
+                      itemCount: _filteredRoutes.length,
                       itemBuilder: (context, index) {
-                        final route = _routes[index];
+                        final route = _filteredRoutes[index];
                         return BusRouteCard(route: route);
                       },
                     ),
                   )
-                else if (_hasSearched)
+                else if (_hasSearched &&
+                    _routes.isNotEmpty &&
+                    _showOnlyArrivingBuses)
+                  const Text(
+                    'No buses found arriving at your starting point.',
+                    style: TextStyle(fontStyle: FontStyle.italic),
+                    textAlign: TextAlign.center,
+                  )
+                else if (_hasSearched && _routes.isEmpty)
                   Text(
                     'No route found between "${widget.startPointController.text}" and "${widget.destinationController.text}".',
                     style: const TextStyle(fontStyle: FontStyle.italic),
@@ -276,8 +351,7 @@ class HomeContentState extends State<HomeContent> {
               ],
             ),
           ),
-          if (_isLoading)
-            const LoadingIndicator(), // Show loading indicator when _isLoading is true
+          if (_isLoading) const LoadingIndicator(),
         ],
       ),
     );
