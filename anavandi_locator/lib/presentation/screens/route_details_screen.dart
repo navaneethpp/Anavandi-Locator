@@ -26,8 +26,11 @@ class RouteDetailsScreen extends StatefulWidget {
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   LatLng? _currentBusLocation;
   int? _highlightedIndex;
-  final double _proximityThreshold = 50; // Proximity in meters
+  final double _proximityThreshold =
+      50; // Proximity in meters for "Currently here"
+  final double _arrivingThreshold = 200; // Proximity in meters for "Arriving"
   final ScrollController _scrollController = ScrollController();
+  Map<int, String> _stopStatuses = {};
 
   @override
   void initState() {
@@ -37,11 +40,11 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       if (mounted && location != null) {
         setState(() {
           _currentBusLocation = location;
-          _highlightCurrentStop();
+          _updateStopStatuses();
         });
       }
     });
-    _highlightCurrentStop();
+    _updateStopStatuses();
   }
 
   @override
@@ -70,13 +73,17 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     return R * c; // in metres
   }
 
-  void _highlightCurrentStop() {
+  void _updateStopStatuses() {
     if (_currentBusLocation == null || widget.stopsData.isEmpty) {
+      setState(() {
+        _highlightedIndex = null;
+        _stopStatuses.clear();
+      });
       return;
     }
 
-    double minDistance = double.infinity;
     int? closestIndex;
+    double minDistance = double.infinity;
 
     for (int i = 0; i < widget.stopsData.length; i++) {
       final stop = widget.stopsData[i];
@@ -97,31 +104,83 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       }
     }
 
-    // Highlight if the closest stop is within the threshold
-    if (closestIndex != null && minDistance <= _proximityThreshold) {
-      if (_highlightedIndex != closestIndex) {
-        setState(() {
-          _highlightedIndex = closestIndex;
-          // Scroll to the highlighted item
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_highlightedIndex != null &&
-                _highlightedIndex! < widget.stopsData.length) {
-              _scrollController.animateTo(
-                _highlightedIndex! * 70.0, // Adjust for the new layout
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
+    setState(() {
+      _stopStatuses.clear();
+      _highlightedIndex = closestIndex;
+
+      if (closestIndex != null) {
+        if (minDistance <= _proximityThreshold) {
+          _stopStatuses[closestIndex] = "Currently here";
+          for (int i = 0; i < closestIndex; i++) {
+            _stopStatuses[i] = "Departed";
+          }
+          if (closestIndex < widget.stopsData.length - 1) {
+            final nextStop = widget.stopsData[closestIndex + 1];
+            final nextStopLat = nextStop['latitude'] as num?;
+            final nextStopLng = nextStop['longitude'] as num?;
+            if (nextStopLat != null && nextStopLng != null) {
+              final distanceToNext = _calculateDistance(
+                _currentBusLocation!,
+                nextStopLat.toDouble(),
+                nextStopLng.toDouble(),
               );
+              if (distanceToNext <= _arrivingThreshold) {
+                _stopStatuses[closestIndex + 1] = "Arriving";
+              } else {
+                // Mark the next stop if not arriving yet
+                if (closestIndex + 1 < widget.stopsData.length) {
+                  _stopStatuses[closestIndex + 1] = "Next";
+                }
+              }
+            } else {
+              // Mark the next stop if not arriving yet (in case of null coordinates)
+              if (closestIndex + 1 < widget.stopsData.length) {
+                _stopStatuses[closestIndex + 1] = "Next";
+              }
             }
-          });
+          }
+        } else {
+          // If not close to any stop, mark previous as departed and next as arriving if close
+          for (int i = 0; i < widget.stopsData.length; i++) {
+            if (closestIndex != null && i < closestIndex) {
+              _stopStatuses[i] = "Departed";
+            } else if (closestIndex != null && i == closestIndex) {
+              // Could indicate just departed
+            } else if (closestIndex != null && i == closestIndex + 1) {
+              final stop = widget.stopsData[i];
+              final stopLat = stop['latitude'] as num?;
+              final stopLng = stop['longitude'] as num?;
+              if (stopLat != null && stopLng != null) {
+                final distanceToNext = _calculateDistance(
+                  _currentBusLocation!,
+                  stopLat.toDouble(),
+                  stopLng.toDouble(),
+                );
+                if (distanceToNext <= _arrivingThreshold) {
+                  _stopStatuses[i] = "Arriving";
+                } else {
+                  _stopStatuses[i] = "Next";
+                }
+              } else {
+                _stopStatuses[i] = "Next";
+              }
+            }
+          }
+        }
+
+        // Scroll to the highlighted item
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_highlightedIndex != null &&
+              _highlightedIndex! < widget.stopsData.length) {
+            _scrollController.animateTo(
+              _highlightedIndex! * 70.0, // Adjust for the layout
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
         });
       }
-    } else {
-      if (_highlightedIndex != null) {
-        setState(() {
-          _highlightedIndex = null; // Clear highlighting if not near a stop
-        });
-      }
-    }
+    });
   }
 
   @override
@@ -142,12 +201,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                           stop['stopName']?.toString().capitalize() ?? 'Stop';
                       final stopTime =
                           stop['stopTime']?.toString() ?? 'Time not available';
-                      final nearCity =
-                          stop['nearestTown']?.toString() ??
-                          ''; // Get near city
-                      final isHighlighted = index == _highlightedIndex;
+                      final nearCity = stop['nearestTown']?.toString() ?? '';
+                      final isHighlighted =
+                          index == _highlightedIndex &&
+                          _stopStatuses[index] == "Currently here";
                       final isFirst = index == 0;
                       final isLast = index == widget.stopsData.length - 1;
+                      final statusText = _stopStatuses[index];
+                      final isNextStop = _stopStatuses[index] == "Next";
 
                       return Padding(
                         key: ValueKey(index),
@@ -158,20 +219,28 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                             // Timeline Indicator
                             SizedBox(
                               width: 40,
-                              height: 60, // Add a fixed height to the SizedBox
+                              height: 60,
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  // Vertical Line - fixed with proper positioning
-                                  if (!isFirst || !isLast)
+                                  // Vertical Line
+                                  if (!isFirst)
                                     Positioned(
-                                      top: isFirst ? 16 : 0,
-                                      bottom: isLast ? 16 : 0,
+                                      top: 0,
+                                      bottom: 30,
                                       child: Container(
                                         width: 2,
-                                        height:
-                                            double
-                                                .infinity, // Fill available space
+                                        height: double.infinity,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ),
+                                  if (!isLast)
+                                    Positioned(
+                                      top: 30,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 2,
+                                        height: double.infinity,
                                         color: Colors.grey.shade400,
                                       ),
                                     ),
@@ -184,6 +253,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                                       color:
                                           isHighlighted
                                               ? Colors.blue
+                                              : isNextStop
+                                              ? Colors
+                                                  .orange // Example color for "Next"
                                               : Colors.grey.shade400,
                                       border: Border.all(
                                         color: Colors.white,
@@ -194,6 +266,13 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                                         isHighlighted
                                             ? const Icon(
                                               Icons.location_on,
+                                              color: Colors.white,
+                                              size: 14,
+                                            )
+                                            : isNextStop
+                                            ? const Icon(
+                                              Icons
+                                                  .flag, // Example icon for "Next"
                                               color: Colors.white,
                                               size: 14,
                                             )
@@ -212,14 +291,13 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                                     stopName,
                                     style: TextStyle(
                                       fontWeight:
-                                          isHighlighted
+                                          isHighlighted || isNextStop
                                               ? FontWeight.bold
                                               : FontWeight.normal,
                                       fontSize: 16,
                                     ),
                                   ),
-                                  if (nearCity
-                                      .isNotEmpty) // Show near city if available
+                                  if (nearCity.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 2.0),
                                       child: Text(
@@ -231,11 +309,36 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                                       ),
                                     ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    'Time: $stopTime',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Time: $stopTime',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      if (statusText != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 8.0,
+                                          ),
+                                          child: Text(
+                                            statusText,
+                                            style: TextStyle(
+                                              color:
+                                                  statusText == "Currently here"
+                                                      ? Colors.blue
+                                                      : statusText == "Arriving"
+                                                      ? Colors.green
+                                                      : isNextStop
+                                                      ? Colors.orange
+                                                      : Colors.grey.shade600,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),
