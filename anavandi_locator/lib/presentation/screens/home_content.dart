@@ -9,6 +9,8 @@ import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
 import 'package:anavandi_locator/common/widgets/swap_button.dart';
 import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart';
 import 'dart:async';
+import 'package:anavandi_locator/presentation/widgets/filter_dialog.dart';
+import 'package:geolocator/geolocator.dart'; // Import geolocator
 
 class HomeContent extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -364,6 +366,7 @@ class HomeContentState extends State<HomeContent> {
                     setState(() {
                       _hasSearched = true;
                       _isLoading = true;
+                      _isLoading = true;
                     });
                     widget.onSubmit();
                   },
@@ -424,6 +427,7 @@ class HomeContentState extends State<HomeContent> {
               ],
             ),
           ),
+          if (_isLoading) const LoadingIndicator(),
           if (_isLoading) const LoadingIndicator(),
         ],
       ),
