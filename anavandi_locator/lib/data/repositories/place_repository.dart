@@ -11,4 +11,14 @@ class PlaceRepository {
   Future<List<Place>> getAllPlaces() async {
     return _placeDataSource.getAllPlaces();
   }
+
+  Future<Place?> getNearestPlace({
+    required double latitude,
+    required double longitude,
+  }) async {
+    return _placeDataSource.getNearestPlace(
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
 }

@@ -9,6 +9,7 @@ import 'package:anavandi_locator/presentation/widgets/bus_route_card.dart';
 import 'package:anavandi_locator/common/widgets/swap_button.dart';
 import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart';
 import 'dart:async';
+import 'package:geolocator/geolocator.dart'; // Import geolocator
 
 class HomeContent extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -184,6 +185,72 @@ class HomeContentState extends State<HomeContent> {
     widget.destinationController.text = temp;
   }
 
+  Future<void> _fetchNearestBusStop() async {
+    setState(() {
+      _isLoading = true; // Show loading while fetching location and stop
+    });
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          // Permissions are denied, handle appropriately
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permissions are denied')),
+          );
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        // Permissions are denied forever, handle appropriately
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location permissions are permanently denied, we cannot request permissions.',
+            ),
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Call your repository method to get the nearest place
+      Place? nearestPlace = await _placeRepository.getNearestPlace(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+
+      if (nearestPlace != null) {
+        setState(() {
+          widget.startPointController.text = nearestPlace.placeName;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not find the nearest bus stop.')),
+        );
+      }
+    } catch (e) {
+      print("Error fetching nearest bus stop: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to fetch nearest bus stop.')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _startPointFocusNode.dispose();
@@ -208,7 +275,6 @@ class HomeContentState extends State<HomeContent> {
       },
       behavior: HitTestBehavior.translucent,
       child: Stack(
-        // Wrap the Padding with a Stack
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -230,6 +296,14 @@ class HomeContentState extends State<HomeContent> {
                     },
                   ),
                 ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _fetchNearestBusStop,
+                    icon: const Icon(Icons.near_me),
+                    label: const Text('Use Current Location'),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 SwapButton(onPressed: _swapTextFields),
                 const SizedBox(height: 8),
@@ -249,8 +323,7 @@ class HomeContentState extends State<HomeContent> {
                   onPressed: () {
                     setState(() {
                       _hasSearched = true;
-                      _isLoading =
-                          true; // Set loading to true when button is pressed
+                      _isLoading = true;
                     });
                     widget.onSubmit();
                   },
@@ -276,8 +349,7 @@ class HomeContentState extends State<HomeContent> {
               ],
             ),
           ),
-          if (_isLoading)
-            const LoadingIndicator(), // Show loading indicator when _isLoading is true
+          if (_isLoading) const LoadingIndicator(),
         ],
       ),
     );
