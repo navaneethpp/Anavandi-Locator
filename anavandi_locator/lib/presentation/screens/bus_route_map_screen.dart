@@ -47,9 +47,10 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
   List<Map<String, dynamic>> _stopsData = [];
   bool _autoCenterEnabled = true;
   LatLng? _userLocation;
-  String? _arrivalTime;
   String? _nearestStopName;
+  String? _nextStopName; // New state variable for the next stop
   bool _showUserLocation = false; // New state variable
+  bool _isOnBus = false; // New state variable to track if user is on the bus
 
   late final OnBusConfirmationDialog
   _onBusConfirmationDialog; // Declare without initialization
@@ -60,7 +61,6 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('BusRouteMapScreen initState called');
     _initializeData();
     _getCurrentUserLocation(); // Fetch location initially
-    _calculateArrivalTime();
     _calculateNearestStop();
     // Initialize the dialog here
     _onBusConfirmationDialog = OnBusConfirmationDialog(
@@ -74,14 +74,19 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
 
   void _handleOnBusConfirmation(bool isOnBus) {
     setState(() {
+      _isOnBus = isOnBus;
       _showUserLocation = !isOnBus;
+      _nearestStopName = null; // Reset these when bus status changes
+      _nextStopName = null;
     });
     if (!_showUserLocation) {
       // If user is on the bus, we don't need continuous location updates
       _locationUpdateTimer?.cancel();
+      _calculateNextStop(); // Calculate the next stop when user confirms they are on the bus
     } else {
       // If user is not on the bus, start or restart location updates
       _startLocationUpdates();
+      _calculateNearestStop(); // Calculate the nearest stop when user confirms they are not on the bus
     }
   }
 
@@ -96,6 +101,11 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       if (_locationUpdateTimer?.isActive == false ||
           _locationUpdateTimer == null) {
         _startLocationUpdates();
+        if (!_isOnBus) {
+          _calculateNearestStop();
+        } else {
+          _calculateNextStop();
+        }
       }
       print(
         'BusRegistrationNumber and TripId are the same, keeping existing data.',
@@ -117,8 +127,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     _stopsData.clear();
     _autoCenterEnabled = true;
     _userLocation = null;
-    _arrivalTime = null;
     _nearestStopName = null;
+    _nextStopName = null;
+    _isOnBus = false;
     _initializeData();
     _getCurrentUserLocation();
   }
@@ -135,8 +146,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         _destinationPoint = null;
         _stopsData.clear();
         _autoCenterEnabled = true;
-        _arrivalTime = null;
         _nearestStopName = null;
+        _nextStopName = null;
       });
 
       print('Fetching bus location for ${widget.busRegistrationNumber}');
@@ -344,8 +355,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         } else if (mounted && !_isDisposed) {
           setState(() {
             _showNoStopsWarning = true;
-            _arrivalTime = 'No stops data';
             _nearestStopName = null;
+            _nextStopName = null;
           });
           print(
             'Warning: Could not fetch bus stops data for tripId: $_bus!.tripId',
@@ -354,8 +365,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       } else if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage = 'Could not find trip information for this bus';
-          _arrivalTime = 'Trip info missing';
           _nearestStopName = null;
+          _nextStopName = null;
         });
         print(
           'Error: Could not find trip information for bus ${widget.busRegistrationNumber}',
@@ -366,8 +377,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage = 'Failed to load bus data: $e';
-          _arrivalTime = 'Load failed';
           _nearestStopName = null;
+          _nextStopName = null;
         });
       }
     } finally {
@@ -377,6 +388,11 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         });
       }
       _startLocationUpdates();
+      if (_isOnBus) {
+        _calculateNextStop();
+      } else {
+        _calculateNearestStop();
+      }
     }
   }
 
@@ -415,7 +431,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
             }
           }
         });
-        _calculateArrivalTime();
+        if (_isOnBus) {
+          _calculateNextStop();
+        }
       }
     });
   }
@@ -509,8 +527,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
       if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage = 'Location services are disabled. Please enable them.';
-          _arrivalTime = 'Location disabled';
           _nearestStopName = null;
+          _nextStopName = null;
         });
       }
       return;
@@ -524,8 +542,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
           setState(() {
             _errorMessage =
                 'Location permissions are denied. Please grant them to use this feature.';
-            _arrivalTime = 'Permission denied';
             _nearestStopName = null;
+            _nextStopName = null;
           });
         }
         return;
@@ -537,8 +555,8 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
         setState(() {
           _errorMessage =
               'Location permissions are permanently denied. Please enable them in your device settings.';
-          _arrivalTime = 'Permission denied permanently';
           _nearestStopName = null;
+          _nextStopName = null;
         });
       }
       return;
@@ -553,74 +571,24 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
           _userLocation = LatLng(position.latitude, position.longitude);
         });
         print('User location: $_userLocation');
-        _calculateArrivalTime();
-        _calculateNearestStop();
+        if (!_isOnBus) {
+          _calculateNearestStop();
+        }
       }
     } catch (e) {
       print('Error getting user location: $e');
       if (mounted && !_isDisposed) {
         setState(() {
           _errorMessage = 'Failed to get user location: $e';
-          _arrivalTime = 'Location error';
           _nearestStopName = null;
+          _nextStopName = null;
         });
       }
     }
   }
 
-  Future<void> _calculateArrivalTime() async {
-    if (_userLocation == null ||
-        _bus?.location == null ||
-        _stopMarkers.isEmpty) {
-      setState(() {
-        _arrivalTime = null;
-        _nearestStopName = null;
-      });
-      return;
-    }
-
-    LatLng nearestStopPoint = LatLng(0, 0);
-    double minDistance = double.infinity;
-
-    for (final marker in _stopMarkers) {
-      final distance = calculateDistance(_userLocation!, marker.point);
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestStopPoint = marker.point;
-      }
-    }
-
-    if (minDistance == double.infinity) {
-      setState(() {
-        _arrivalTime = 'No stops found';
-        _nearestStopName = null;
-      });
-      return;
-    }
-
-    final busToStopDistance = calculateDistance(
-      _bus!.location!,
-      nearestStopPoint,
-    );
-
-    const averageSpeedKmH = 30.0;
-    final averageSpeedKmMin = averageSpeedKmH / 60.0;
-    final distanceKm = busToStopDistance / 1000;
-    final timeInMinutes = distanceKm / averageSpeedKmMin;
-    final formattedTime =
-        timeInMinutes.ceil() > 0
-            ? '${timeInMinutes.ceil()} minutes'
-            : 'Less than a minute';
-
-    setState(() {
-      _arrivalTime = formattedTime;
-    });
-    print('Estimated arrival time: $_arrivalTime');
-    _calculateNearestStop();
-  }
-
   Future<void> _calculateNearestStop() async {
-    if (_userLocation == null || _stopsData.isEmpty) {
+    if (_userLocation == null || _stopsData.isEmpty || _isOnBus) {
       setState(() {
         _nearestStopName = null;
       });
@@ -653,6 +621,46 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('Nearest stop: $_nearestStopName');
   }
 
+  Future<void> _calculateNextStop() async {
+    if (_bus?.location == null || _stopsData.isEmpty || !_isOnBus) {
+      setState(() {
+        _nextStopName = null;
+      });
+      return;
+    }
+
+    double minDistance = double.infinity;
+    int closestStopIndex = -1;
+
+    for (int i = 0; i < _stopsData.length; i++) {
+      final stopData = _stopsData[i];
+      final lat = stopData['latitude'];
+      final lng = stopData['longitude'];
+
+      if (lat is num && lng is num) {
+        final stopLatLng = LatLng(lat.toDouble(), lng.toDouble());
+        final distance = calculateDistance(_bus!.location!, stopLatLng);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestStopIndex = i;
+        }
+      }
+    }
+
+    if (closestStopIndex != -1 && closestStopIndex < _stopsData.length - 1) {
+      setState(() {
+        _nextStopName =
+            _stopsData[closestStopIndex + 1]['stopName']?.toString();
+      });
+      print('Next stop: $_nextStopName');
+    } else {
+      setState(() {
+        _nextStopName = 'End of Route';
+      });
+      print('Next stop: End of Route');
+    }
+  }
+
   double calculateDistance(LatLng point1, LatLng point2) {
     const R = 6371e3;
     final lat1 = point1.latitude * pi / 180;
@@ -679,6 +687,7 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('  _destinationPoint: $_destinationPoint');
     print('  _stopsData.isNotEmpty: ${_stopsData.isNotEmpty}');
     print('Number of route polylines in build: ${_routePolylines.length}');
+    print('User on bus: $_isOnBus');
 
     // Prepare user location marker
     List<Marker> userLocationMarkers = [];
@@ -765,8 +774,11 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
             top: 16,
             right: 0,
             child: DataDisplayWidget(
-              arrivalTime: _arrivalTime,
-              nearestStopName: _nearestStopName,
+              stopName:
+                  _isOnBus
+                      ? _nextStopName
+                      : _nearestStopName, // Conditional display
+              isNextStop: _isOnBus, // Pass a flag to the widget
             ),
           ),
         ],

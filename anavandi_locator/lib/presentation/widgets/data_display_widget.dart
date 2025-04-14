@@ -2,16 +2,20 @@
 import 'package:flutter/material.dart';
 
 class DataDisplayWidget extends StatelessWidget {
-  final String? arrivalTime;
-  final String? nearestStopName;
+  final String? stopName;
+  final bool isNextStop;
 
-  const DataDisplayWidget({super.key, this.arrivalTime, this.nearestStopName});
+  const DataDisplayWidget({
+    super.key,
+    this.stopName,
+    this.isNextStop = false, // Default to false
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 200,
-      height: 100, // Increased height to accommodate the new text
+      height: 60, // Reduced height as arrival time is removed
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
         borderRadius: const BorderRadius.only(
@@ -33,29 +37,20 @@ class DataDisplayWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (arrivalTime != null)
+            if (stopName != null)
               Text(
-                'Arriving in: $arrivalTime',
+                '${isNextStop ? 'Next Stop' : 'Nearest Stop'}: $stopName',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ), // Slightly increased font size
               )
             else
-              const Text(
-                'Finding Arrival Time...',
-                textAlign: TextAlign.center,
-              ),
-            const SizedBox(height: 8),
-            if (nearestStopName != null)
               Text(
-                'Nearest Stop: $nearestStopName',
+                'Finding ${isNextStop ? 'Next Stop' : 'Nearest Stop'}...',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
-              )
-            else
-              const Text(
-                'Finding Nearest Stop...',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 14),
               ),
           ],
         ),
