@@ -15,6 +15,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:anavandi_locator/presentation/widgets/data_display_widget.dart';
 import 'dart:math';
+import 'package:anavandi_locator/presentation/widgets/on_bus_confirmation_dialog.dart'; // Import the new dialog widget
 
 class BusRouteMapScreen extends StatefulWidget {
   final String busRegistrationNumber;
@@ -48,17 +49,40 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
   LatLng? _userLocation;
   String? _arrivalTime;
   String? _nearestStopName;
+  bool _showUserLocation = false; // New state variable
+
+  late final OnBusConfirmationDialog
+  _onBusConfirmationDialog; // Declare without initialization
 
   @override
   void initState() {
     super.initState();
     print('BusRouteMapScreen initState called');
     _initializeData();
+    _getCurrentUserLocation(); // Fetch location initially
     _calculateArrivalTime();
     _calculateNearestStop();
-    _getCurrentUserLocation();
-    _calculateArrivalTime();
-    _calculateNearestStop();
+    // Initialize the dialog here
+    _onBusConfirmationDialog = OnBusConfirmationDialog(
+      onConfirmation: _handleOnBusConfirmation,
+    );
+    // Show the confirmation dialog
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _onBusConfirmationDialog.show(context);
+    });
+  }
+
+  void _handleOnBusConfirmation(bool isOnBus) {
+    setState(() {
+      _showUserLocation = !isOnBus;
+    });
+    if (!_showUserLocation) {
+      // If user is on the bus, we don't need continuous location updates
+      _locationUpdateTimer?.cancel();
+    } else {
+      // If user is not on the bus, start or restart location updates
+      _startLocationUpdates();
+    }
   }
 
   @override
@@ -656,29 +680,9 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
     print('  _stopsData.isNotEmpty: ${_stopsData.isNotEmpty}');
     print('Number of route polylines in build: ${_routePolylines.length}');
 
-    Widget appBarTitleWidget;
-    if (_startPoint != null && _destinationPoint != null) {
-      appBarTitleWidget = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$_startPoint to $_destinationPoint',
-            style: const TextStyle(fontSize: 18),
-          ),
-          Text(
-            widget.busRegistrationNumber,
-            style: const TextStyle(fontSize: 12),
-          ),
-        ],
-      );
-    } else {
-      appBarTitleWidget = Text('Route for ${widget.busRegistrationNumber}');
-    }
-
     // Prepare user location marker
     List<Marker> userLocationMarkers = [];
-    if (_userLocation != null) {
+    if (_userLocation != null && _showUserLocation) {
       userLocationMarkers.add(
         Marker(
           point: _userLocation!,
@@ -719,14 +723,21 @@ class BusRouteMapScreenState extends State<BusRouteMapScreen> {
                 bus: _bus,
                 stopMarkers: _stopMarkers,
                 routePolylines: _routePolylines,
-                userLocation: _userLocation,
+                userLocation:
+                    _showUserLocation
+                        ? _userLocation
+                        : null, // Pass userLocation conditionally
+              ),
+              MarkerLayer(
+                // Add the MarkerLayer
+                markers: userLocationMarkers,
               ),
             ],
           ),
           Positioned(
             left: 8,
             bottom: 8,
-            child: Text(
+            child: const Text(
               "OpenStreetMapContributes",
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
