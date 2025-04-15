@@ -22,7 +22,13 @@ class MapLayers extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // First add the polylines
         PolylineLayer(polylines: routePolylines),
+
+        // Then add stop markers
+        MarkerLayer(markers: stopMarkers),
+
+        // Then add the bus marker (it will appear on top of stops)
         if (bus?.location != null &&
             isValidCoordinate(
               bus!.location!.latitude,
@@ -42,7 +48,8 @@ class MapLayers extends StatelessWidget {
               ),
             ],
           ),
-        MarkerLayer(markers: stopMarkers),
+
+        // Finally add user location marker if available
         if (userLocation != null)
           MarkerLayer(
             markers: [
