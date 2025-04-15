@@ -10,7 +10,7 @@ import 'package:anavandi_locator/common/widgets/swap_button.dart';
 import 'package:anavandi_locator/presentation/widgets/loading_indicator.dart';
 import 'dart:async';
 import 'package:anavandi_locator/presentation/widgets/filter_dialog.dart';
-import 'package:geolocator/geolocator.dart'; // Import geolocator
+import 'package:geolocator/geolocator.dart';
 
 class HomeContent extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -41,13 +41,16 @@ class HomeContentState extends State<HomeContent> {
   final LayerLink _startPointLayerLink = LayerLink();
   final LayerLink _destinationLayerLink = LayerLink();
   List<BusRoute> _routes = [];
-  List<BusRoute> _filteredRoutes = []; // To store filtered routes
+  List<BusRoute> _filteredRoutes = [];
   bool _hasSearched = false;
   Timer? _noRouteTimer;
   bool _isLoading = false;
 
   // Filter options
   bool _showOnlyArrivingBuses = false;
+
+  // Rest of your methods remain the same
+  // ...
 
   void _onStartPointChanged(String value) async {
     if (value.isEmpty) {
@@ -167,7 +170,7 @@ class HomeContentState extends State<HomeContent> {
   void updateRoute(List<BusRoute> routes) {
     setState(() {
       _routes = routes;
-      _applyFilters(); // Apply filters when routes are updated
+      _applyFilters();
       _isLoading = false;
       if (_routes.isNotEmpty) {
         _hasSearched = true;
@@ -184,13 +187,11 @@ class HomeContentState extends State<HomeContent> {
     });
   }
 
-  // Apply filters based on the current filter selections
   void _applyFilters() {
     if (_showOnlyArrivingBuses) {
       final startPoint = widget.startPointController.text.toLowerCase();
       _filteredRoutes =
           _routes.where((route) {
-            // Check if any bus stop (except the first one) matches the starting point
             for (int i = 1; i < route.busStops.length; i++) {
               if (route.busStops[i].stopName.toLowerCase() == startPoint) {
                 return true;
@@ -203,7 +204,6 @@ class HomeContentState extends State<HomeContent> {
     }
   }
 
-  // Show filter dialog
   void _showFilterDialog() {
     showDialog(
       context: context,
@@ -229,14 +229,13 @@ class HomeContentState extends State<HomeContent> {
 
   Future<void> _fetchNearestBusStop() async {
     setState(() {
-      _isLoading = true; // Show loading while fetching location and stop
+      _isLoading = true;
     });
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          // Permissions are denied, handle appropriately
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Location permissions are denied')),
           );
@@ -248,7 +247,6 @@ class HomeContentState extends State<HomeContent> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        // Permissions are denied forever, handle appropriately
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -266,7 +264,6 @@ class HomeContentState extends State<HomeContent> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Call your repository method to get the nearest place
       Place? nearestPlace = await _placeRepository.getNearestPlace(
         latitude: position.latitude,
         longitude: position.longitude,
@@ -318,116 +315,125 @@ class HomeContentState extends State<HomeContent> {
       behavior: HitTestBehavior.translucent,
       child: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                CompositedTransformTarget(
-                  link: _startPointLayerLink,
-                  child: CustomTextField(
-                    focusNode: _startPointFocusNode,
-                    controller: widget.startPointController,
-                    hintText: 'Enter Starting Point',
-                    prefixIcon: Icons.location_on,
-                    onChanged: _onStartPointChanged,
-                    onSubmitted: (_) {
-                      FocusScope.of(
-                        context,
-                      ).requestFocus(_destinationFocusNode);
-                    },
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _fetchNearestBusStop,
-                    icon: const Icon(Icons.near_me),
-                    label: const Text('Use Current Location'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SwapButton(onPressed: _swapTextFields),
-                const SizedBox(height: 8),
-                CompositedTransformTarget(
-                  link: _destinationLayerLink,
-                  child: CustomTextField(
-                    focusNode: _destinationFocusNode,
-                    controller: widget.destinationController,
-                    hintText: 'Enter Destination',
-                    prefixIcon: Icons.flag,
-                    onChanged: _onDestinationChanged,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SubmitButton(
-                  label: 'Find the Bus',
-                  onPressed: () {
-                    setState(() {
-                      _hasSearched = true;
-                      _isLoading = true;
-                      _isLoading = true;
-                    });
-                    widget.onSubmit();
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Filter section and results
-                if (_routes.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Results: ${_filteredRoutes.length}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.filter_list, size: 18),
-                        label: const Text('Filter'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          textStyle: const TextStyle(fontSize: 14),
-                        ),
-                        onPressed: _showFilterDialog,
-                      ),
-                    ],
-                  ),
-
-                const SizedBox(height: 8),
-
-                if (_filteredRoutes.isNotEmpty)
-                  Expanded(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _filteredRoutes.length,
-                      itemBuilder: (context, index) {
-                        final route = _filteredRoutes[index];
-                        return BusRouteCard(route: route);
+          // Wrap the entire content in a SingleChildScrollView
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  CompositedTransformTarget(
+                    link: _startPointLayerLink,
+                    child: CustomTextField(
+                      focusNode: _startPointFocusNode,
+                      controller: widget.startPointController,
+                      hintText: 'Enter Starting Point',
+                      prefixIcon: Icons.location_on,
+                      onChanged: _onStartPointChanged,
+                      onSubmitted: (_) {
+                        FocusScope.of(
+                          context,
+                        ).requestFocus(_destinationFocusNode);
                       },
                     ),
-                  )
-                else if (_hasSearched &&
-                    _routes.isNotEmpty &&
-                    _showOnlyArrivingBuses)
-                  const Text(
-                    'No buses found arriving at your starting point.',
-                    style: TextStyle(fontStyle: FontStyle.italic),
-                    textAlign: TextAlign.center,
-                  )
-                else if (_hasSearched && _routes.isEmpty)
-                  Text(
-                    'No route found between "${widget.startPointController.text}" and "${widget.destinationController.text}".',
-                    style: const TextStyle(fontStyle: FontStyle.italic),
-                    textAlign: TextAlign.center,
                   ),
-              ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: _fetchNearestBusStop,
+                      icon: const Icon(Icons.near_me),
+                      label: const Text('Use Current Location'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwapButton(onPressed: _swapTextFields),
+                  const SizedBox(height: 8),
+                  CompositedTransformTarget(
+                    link: _destinationLayerLink,
+                    child: CustomTextField(
+                      focusNode: _destinationFocusNode,
+                      controller: widget.destinationController,
+                      hintText: 'Enter Destination',
+                      prefixIcon: Icons.flag,
+                      onChanged: _onDestinationChanged,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SubmitButton(
+                    label: 'Find the Bus',
+                    onPressed: () {
+                      setState(() {
+                        _hasSearched = true;
+                        _isLoading = true;
+                      });
+                      widget.onSubmit();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Filter section and results
+                  if (_routes.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Results: ${_filteredRoutes.length}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.filter_list, size: 18),
+                          label: const Text('Filter'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            textStyle: const TextStyle(fontSize: 14),
+                          ),
+                          onPressed: _showFilterDialog,
+                        ),
+                      ],
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  if (_filteredRoutes.isNotEmpty)
+                    // Instead of Expanded ListView, use a fixed height or intrinsic height ListView
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        // Set a maximum height for the routes list
+                        maxHeight: MediaQuery.of(context).size.height * 0.5,
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        physics:
+                            const ClampingScrollPhysics(), // Use ClampingScrollPhysics for nested scrolling
+                        itemCount: _filteredRoutes.length,
+                        itemBuilder: (context, index) {
+                          final route = _filteredRoutes[index];
+                          return BusRouteCard(route: route);
+                        },
+                      ),
+                    )
+                  else if (_hasSearched &&
+                      _routes.isNotEmpty &&
+                      _showOnlyArrivingBuses)
+                    const Text(
+                      'No buses found arriving at your starting point.',
+                      style: TextStyle(fontStyle: FontStyle.italic),
+                      textAlign: TextAlign.center,
+                    )
+                  else if (_hasSearched && _routes.isEmpty)
+                    Text(
+                      'No route found between "${widget.startPointController.text}" and "${widget.destinationController.text}".',
+                      style: const TextStyle(fontStyle: FontStyle.italic),
+                      textAlign: TextAlign.center,
+                    ),
+                ],
+              ),
             ),
           ),
-          if (_isLoading) const LoadingIndicator(),
           if (_isLoading) const LoadingIndicator(),
         ],
       ),
