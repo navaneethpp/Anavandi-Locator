@@ -33,14 +33,7 @@
 - Location Permissions & Services:
   - Handles location permissions gracefully, requesting access if needed.
   - Provides user feedback if location services are disabled or permissions are denied.
-## Getting Started
-Follow these steps to get the Anavandi Locator app running on your local machine:
 
-### Prerequisites
-- **Flutter SDK:** Ensure you have Flutter SDK installed and configured correctly. Flutter Installation Guide
-- **Android Studio or VS Code:** Recommended IDE for Flutter development.
-- **Firebase Project:** You need to have a Firebase project set up. Firebase Console
-- **OpenRouteService API Key:** Obtain an API key from OpenRouteService.
 
 ## ⚠️ Usage Restriction
 
