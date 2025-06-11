@@ -42,74 +42,10 @@ Follow these steps to get the Anavandi Locator app running on your local machine
 - **Firebase Project:** You need to have a Firebase project set up. Firebase Console
 - **OpenRouteService API Key:** Obtain an API key from OpenRouteService.
 
-### Installation
-1. Clone the Repository:
+## ⚠️ Usage Restriction
 
-```Bash
-git clone <repository_url>
-cd anavandi_locator
-```
-2. Install Dependencies:
+This project is proprietary and not intended for reuse, redistribution, or modification without the author's written consent.
 
-```Bash
-
-flutter pub get
-```
-3. Firebase Configuration:
-  - **Enable Firestore Database:** In your Firebase project console, enable the Firestore Database.
-  - **Download `google-services.json` (Android) and `GoogleService-Info.plist` (iOS):** From your Firebase project settings, download the configuration files for Android and iOS.
-  - **Place Configuration Files:**
-    - Android: Place `google-services.json` in the `android/app/ directory`.
-    - iOS: Place  `GoogleService-Info.plist` in the `ios/Runner/ directory`.
-4. OpenRouteService API Key Configuration:
-  - Create a file named `open_route_service.dart` in the `lib/api/` directory (if it doesn't exist).
-  - Add your OpenRouteService API key to this file:
-
-```Dart
-// lib/api/open_route_service.dart
-const String openRouteSerivceAPI = 'YOUR_OPENROUTESERVICE_API_KEY'; // Replace with your actual API key
-```
-&emsp;**Replace `YOUR_OPENROUTESERVICE_API_KEY` with the API key you obtained from OpenRouteService.**
-
-5. Run the App:
-
-```Bash
-
-flutter run
-```
-&emsp;Choose your desired device (connected device or emulator) and run the application.
-
-### Firebase Setup Details
-- **Firestore Database:** The app uses Firestore to store and retrieve real-time bus location data.
-
-  - **Collection Name:** `Depot` - Stores depot names and locations (latitude, longitude).
-  - **Collection Name:** `location` - Document `location` within this collection is used to stream bus location updates. The document should have a field named `Location` storing location data as a string (e.g., "10.1234N, 77.5678E").
-Firestore Data Structure (Example):
-
-### Depot Collection:
-
-```JSON
-
-[
-  {
-    "name": "City Center Depot",
-    "location": [10.1234, 76.5678] // Latitude, Longitude (as an array)
-  },
-  {
-    "name": "Uptown Depot",
-    "location": [10.5678, 76.9012]
-  },
-  // ... more depots
-]
-```
-**location Collection (Document: `location`):**
-```JSON
-
-{
-  "Location": "10.7675N, 76.6492E" // Example location string format
-}
-```
-&emsp;**Note:** Ensure your Firestore database rules are configured appropriately for your application's security needs.
 
 ### OpenRouteService API
 - The app utilizes the OpenRouteService API for fetching driving route polyline data.
