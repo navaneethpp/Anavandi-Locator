@@ -40,34 +40,12 @@
 This project is proprietary and not intended for reuse, redistribution, or modification without the author's written consent.
 
 
-### OpenRouteService API
+## OpenRouteService API
 - The app utilizes the OpenRouteService API for fetching driving route polyline data.
 - You need to sign up for a free account at OpenRouteService to obtain an API key.
 - Remember to replace the placeholder `YOUR_OPENROUTESERVICE_API_KEY` in `lib/api/open_route_service.dart` with your actual API key.
-### Project Structure
-<pre>
-anavandi_locator/
-├── android/               # Android-specific files
-├── ios/                   # iOS-specific files
-├── lib/                   # Dart source code
-│   ├── api/               # API related files (open_route_service.dart)
-│   ├── screen/            # Application screens/pages
-│   │   ├── bus_details_page.dart
-│   │   ├── main_screen.dart
-│   │   ├── recent_page.dart
-│   │   ├── splash_screen.dart
-│   ├── widgets/           # Reusable widgets
-│   │   ├── bus_selection_menu.dart
-│   │   ├── compass_widget.dart
-│   │   ├── constants.dart
-│   │   ├── map.dart
-│   │   ├── textForBusDetails.dart
-│   ├── main.dart          # Main application entry point
-├── assets/                # Application assets (images, logos)
-├── pubspec.yaml         # Project dependencies and configuration
-├── readme.md            # Project README file (this file)
-</pre>
-### Dependencies
+
+## Dependencies
 - **flutter_map:** For interactive map display.
 - **latlong2:** For handling latitude and longitude coordinates.
 - **geolocator:* For accessing device location services.
